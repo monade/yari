@@ -14,12 +14,12 @@
     #define TARGET_FPS 30
     #define SCREEN_W LCD_W
     #define SCREEN_H LCD_H
-    #define RAY_RES 4
+    #define RAY_RES 2
 #else
     #define TARGET_FPS 60
     #define SCREEN_W 800
     #define SCREEN_H 600
-    #define RAY_RES 1
+    #define RAY_RES 2
 #endif
 #define COLS 10
 #define ROWS 10
@@ -56,6 +56,14 @@ Color color_map[] = {
 };
 
 void init_game() {
+    for (int i = 0; i < ROWS; i++) {
+        map[i][0] = tx_bricks;
+        map[i][COLS - 1] = tx_bricks;
+    }
+    for (int j = 0; j < COLS; j++) {
+        map[0][j] = tx_bricks;
+        map[ROWS - 1][j] = tx_bricks;
+    }
     map[1][3] = tx_bricks;
     map[1][4] = 131;
     map[1][5] = 129;
@@ -102,17 +110,17 @@ void draw_minimap_player(Vector2 p) {
     DrawCircleV(Vector2Scale(p, MINIMAP_CELL_SCALE), POINT_R * 2.0, GREEN);
 }
 
-void raycast_walls(Player p, Vector2 dir, int slice_x) {
+void raycast_walls(const Player *p, Vector2 dir, int slice_x) {
     if (dir.x == 0.0) dir.x = EPSILON;
     if (dir.y == 0.0) dir.y = EPSILON;
-    Vector2 rs = Vector2Add(p.pos, Vector2Scale(dir, EPSILON));
-    while (Vector2Length(Vector2Subtract(rs, p.pos)) <= MAX_RENDER_DIST) {
+    Vector2 rs = Vector2Add(p->pos, Vector2Scale(dir, EPSILON));
+    while (Vector2Length(Vector2Subtract(rs, p->pos)) <= MAX_RENDER_DIST) {
         Vector2 cell = {.x = floorf(rs.x), .y = floorf(rs.y)};
         if (rs.x > 0.0 && rs.x < COLS && rs.y > 0.0 && rs.y < ROWS) {
             uint8_t map_cell = map[(int)cell.y][(int)cell.x];
             if (map_cell) {
                 // draw slice
-                float dist = Vector2DotProduct(Vector2Subtract(rs, p.pos), p.dir) / ASPECT_RATIO;
+                float dist = Vector2DotProduct(Vector2Subtract(rs, p->pos), p->dir) / ASPECT_RATIO;
                 int h = SCREEN_H / dist;
                 float bright_factor = 1.0 / dist - 0.9;
                 if (bright_factor >= 0.0) bright_factor = 0.0;
@@ -128,21 +136,20 @@ void raycast_walls(Player p, Vector2 dir, int slice_x) {
                     float diff_y = rs.y - cell.y;
 
 
-                    if (diff_x > EPSILON && diff_x < 1 - EPSILON) {
+                    if (diff_x > EPSILON && diff_x < 1.0 - EPSILON) {
                         texture_x = diff_x * TEXTURE_SIZE;
                     } else {
                         texture_x = TEXTURE_SIZE - (diff_y * TEXTURE_SIZE);
                     }
                     int hmax = h;
                     if(hmax > SCREEN_H) hmax = SCREEN_H;
-
-                    for (int y = 0; y < hmax; y++) {
-                        int overflow_screen = (h-hmax)/2.0;
+                    for (int y = 0; y < hmax; y+=RAY_RES) {
+                        int overflow_screen = (h-hmax)/2;
                         int texture_y = ((overflow_screen+y) * TEXTURE_SIZE) / h;
                         pixel_t texel = tex[texture_y * TEXTURE_SIZE + texture_x];
                         Color texel_color = GetColor(texel);
                         Color c = ColorBrightness(texel_color, bright_factor);
-                        DrawRectangle(slice_x, (SCREEN_H - hmax) / 2.0 + y, RAY_RES, 1, c);
+                        DrawRectangle(slice_x, (SCREEN_H - hmax) / 2 + y, RAY_RES, RAY_RES, c);
                     }
                 }
                 return;
@@ -190,13 +197,41 @@ void move_player(Player *p) {
     }
 }
 
-void draw_walls(Player p) {
+void draw_walls(const Player *p) {
     float alpha = -FOV_ANGLE / 2.0;
     float alpha_step = FOV_ANGLE * RAY_RES / SCREEN_W;
     for (int slice_x = 0; slice_x < SCREEN_W; slice_x += RAY_RES) {
-        Vector2 ray = Vector2Rotate(p.dir, alpha);
+        Vector2 ray = Vector2Rotate(p->dir, alpha);
         raycast_walls(p, ray, slice_x);
         alpha += alpha_step;
+    }
+}
+
+void draw_background(const Player *p) {
+    Vector2 r0 = Vector2Rotate(p->dir, -FOV_ANGLE / 2.0);
+    Vector2 r1 = Vector2Rotate(p->dir, FOV_ANGLE / 2.0);
+    int h = SCREEN_H/2;
+    const pixel_t *floor_texture = assets_map[tx_wood];
+    const pixel_t *ceil_texture = assets_map[tx_greystone];
+    for(int y = 0; y < h; y += RAY_RES) {
+        float h_cam = (float)SCREEN_W/2.0;
+        float row_dist = (h_cam / (h - y));
+        Vector2 floor_step = Vector2Scale(Vector2Subtract(r1, r0), (row_dist * RAY_RES) / SCREEN_W);
+        Vector2 floor = Vector2Add(p->pos, Vector2Scale(r0, row_dist));
+        for(int x = 0; x < SCREEN_W; x += RAY_RES) {
+            Vector2 cell = { .x = floorf(floor.x), .y = floorf(floor.y) };
+            int tx = TEXTURE_SIZE * (floor.x - cell.x);
+            int ty = TEXTURE_SIZE * (floor.y - cell.y);
+            
+            Color c = GetColor(ceil_texture[ty * TEXTURE_SIZE + tx]);
+            c = ColorBrightness(c, -(row_dist / MAX_RENDER_DIST));
+            DrawRectangle(x, y, RAY_RES, RAY_RES, c);
+
+            Color c2 = GetColor(floor_texture[ty * TEXTURE_SIZE + tx]);
+            c2 = ColorBrightness(c2, -(row_dist / MAX_RENDER_DIST));
+            DrawRectangle(x, SCREEN_H - y - RAY_RES, RAY_RES, RAY_RES, c2);
+            floor = Vector2Add(floor, floor_step);
+        }
     }
 }
 
@@ -210,16 +245,20 @@ int main()
     InitWindow(SCREEN_W, SCREEN_H, "ray");
     SetTargetFPS(TARGET_FPS);
     SetConfigFlags(FLAG_MSAA_4X_HINT);
-    Player p = {.pos = {.x = 0.2, .y = 1.3}, .dir = {.x = 1, .y = 0}};
+    Player p = {.pos = {.x = 1.2, .y = 1.3}, .dir = {.x = 1, .y = 0}};
 
     while (!WindowShouldClose()) {
         move_player(&p);
         BeginDrawing();
-        ClearBackground(BLACK);
-        draw_walls(p);
+        draw_background(&p);
+        draw_walls(&p);
         #ifdef DEBUG
         draw_minimap();
         draw_minimap_player(p.pos);
+        float fps = GetFPS();
+        char fps_text[16];
+        snprintf(fps_text, sizeof(fps_text), "FPS: %.2f", fps);
+        DrawText(fps_text, SCREEN_W - 150, 30, 20, RAYWHITE);
         #endif
         EndDrawing();
     }
