@@ -76,7 +76,7 @@ int main(int argc, char **argv) {
     while ((dir = readdir(d)) != NULL) {
         if(dir->d_type != 8) continue;
         if(!ends_with(dir->d_name, ".png") && !ends_with(dir->d_name, ".jpg")) continue;
-        char *name = strdup(dir->d_name);
+        char *name = tmp_strdup(dir->d_name);
         char *c=strrchr(name, '.');
         *c = 0;
         da_append(&assets, name);
@@ -87,19 +87,19 @@ int main(int argc, char **argv) {
         strcat(cfile, "/");
         strcat(cfile, dir->d_name);
         uint8_t *bitmap = stbi_load(cfile, &x, &y, &ch, 0);
-        printf("cfile content: %s\n", cfile);
-        printf("Bitmap %p, x: %d, y: %d, ch: %d\n", bitmap, x, y, ch);
+        log_info("Packing asset %s (size: %dx%d, channels: %d)\n", dir->d_name, x, y, ch);
         if (!bitmap) {
-            log_error("Error loading image %s\n", cfile);
-            exit(1);
+          log_error("Error loading image %s\n", cfile);
+          exit(1);
         }
-
+        
         str_appendf(&out, "// %s\n", dir->d_name);
         str_append(&out, "#ifdef ESP32\n");
         generate_rgb_565(&out, name, bitmap, x, y, ch);
         str_append(&out, "#else\n");
         generate_rgb_32(&out, name, bitmap, x, y, ch);
         str_append(&out, "#endif\n\n");
+        STBI_FREE(bitmap);
     }
     closedir(d);
 
@@ -119,5 +119,8 @@ int main(int argc, char **argv) {
     str_append(&out, "#endif //ASSETS_H");
 
     write_entire_file(argv[2], &out);
+    da_free(&out);
+    da_free(&assets);
+    tmp_free();
     return 0;
 }
