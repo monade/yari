@@ -93,7 +93,7 @@
 
 // =================== CONFIG ===================
 
-#ifndef FB_DRAM
+#ifdef FB_DRAM
 #define FB_ATTR static
 #else
 // Attribute to place framebuffer in IRAM
@@ -332,7 +332,7 @@ FB_ATTR uint16_t framebuffer[LCD_W * LCD_H];
 // write a 16-bit value to an address in IRAM, handling unaligned accesses
 static inline void write_u16_iram(uint16_t *addr, uint16_t val) {
     uintptr_t ptr = (uintptr_t)addr;
-    uint32_t *aligned = (uint32_t *)(ptr & ~3);
+    volatile uint32_t *aligned = (uint32_t *)(ptr & ~3);
     
     if (ptr & 2) {
         *aligned = (*aligned & 0x0000FFFF) | (val << 16);
