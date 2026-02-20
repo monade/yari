@@ -175,6 +175,27 @@ void raycast_walls(const Player *p, Vector2 dir, int slice_x) {
     }
 }
 
+bool check_for_obstacle(Vector2 pos, Vector2 dir, float threshold)
+{
+  Vector2 rs = Vector2Add(pos, Vector2Scale(dir, EPSILON));
+  Vector2 cell = {.x = floorf(rs.x), .y = floorf(rs.y)};
+
+  float distX = cell.x + (dir.x >= 0 ? 1.0 : -EPSILON) - rs.x;
+  float distY = cell.y + (dir.y >= 0 ? 1.0 : -EPSILON) - rs.y;
+
+  Vector2 inc;
+  if (fabs(distX / dir.x) < fabs(distY / dir.y)) {
+      inc = (Vector2){.x = distX, .y = distX * dir.y / dir.x};
+  } else {
+      inc = (Vector2){.x = distY * dir.x / dir.y, .y = distY};
+  }
+
+  Vector2 next_cell = Vector2Add(inc, rs);
+  uint8_t map_cell = map[(int)next_cell.y][(int)next_cell.x];
+
+  return map_cell && Vector2LengthSqr(inc) <= threshold * threshold;
+}
+
 void move_player(Player *p) {
     float dt = GetFrameTime();
     if (IsKeyDown(KEY_A)) {
@@ -184,16 +205,32 @@ void move_player(Player *p) {
         p->dir = Vector2Rotate(p->dir, dt * PLAYER_ROTATION_SPEED);
     }
     if (IsKeyDown(KEY_W)) {
-        p->pos = Vector2Add(p->pos, Vector2Scale(p->dir, dt * PLAYER_SPEED));
+        if (check_for_obstacle(p->pos, p->dir, 0.3)) {
+          return;
+        } else {
+          p->pos = Vector2Add(p->pos, Vector2Scale(p->dir, dt * PLAYER_SPEED));
+        }
     }
     if (IsKeyDown(KEY_S)) {
+      if (check_for_obstacle(p->pos, Vector2Scale(p->dir, -1), 0.3)) {
+        return;
+      } else {
         p->pos = Vector2Add(p->pos, Vector2Scale(p->dir, -dt * PLAYER_SPEED));
+      }
     }
     if (IsKeyDown(KEY_E)) {
+      if (check_for_obstacle(p->pos, Vector2Rotate(p->dir, PI / 2.0), 0.3)) {
+        return;
+      } else {
         p->pos = Vector2Add(p->pos, Vector2Scale(Vector2Rotate(p->dir, PI / 2.0), dt * PLAYER_SPEED));
+      }
     }
     if (IsKeyDown(KEY_Q)) {
+      if (check_for_obstacle(p->pos, Vector2Rotate(p->dir, -PI / 2.0), 0.3)) {
+        return;
+      } else {
         p->pos = Vector2Add(p->pos, Vector2Scale(Vector2Rotate(p->dir, -PI / 2.0), dt * PLAYER_SPEED));
+      }
     }
 }
 
