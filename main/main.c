@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <math.h>
@@ -11,15 +12,17 @@
 #define SetPixel(x, y, color) DrawRectangle(x, y, 1, 1, color)
 
 #ifdef ESP32
-    #define TARGET_FPS 30
-    #define SCREEN_W LCD_W
-    #define SCREEN_H LCD_H
-    #define RAY_RES 2
+#define TARGET_FPS 30
+#define SCREEN_W LCD_W
+#define SCREEN_H LCD_H
+#define RAY_RES 2
+#define EMPTY_PIXEL 0
 #else
-    #define TARGET_FPS 60
-    #define SCREEN_W 800
-    #define SCREEN_H 600
-    #define RAY_RES 2
+#define TARGET_FPS 60
+#define SCREEN_W 800
+#define SCREEN_H 600
+#define RAY_RES 2
+#define EMPTY_PIXEL 0xFF
 #endif
 #define COLS 10
 #define ROWS 10
@@ -40,20 +43,57 @@ typedef struct {
     Vector2 dir;
 } Player;
 
+typedef struct Sprite {
+    Vector2 pos;
+    int texture_id;
+    float dist;
+    float vdiv;
+    float hdiv;
+    float vmove;
+    void (*update)(struct Sprite *self);
+} Sprite;
+
 // 0 null, 1-127 texture_id, 128-255 color_id
 static uint8_t map[ROWS][COLS] = {0};
 
 // pixel_t assets_map from assets.h
 
 Color color_map[] = {
-    RED,     // 128
-    GREEN,   // 129
-    BLUE,    // 130
-    YELLOW,  // 131
-    PURPLE,  // 132
-    ORANGE,  // 133
-    WHITE    // 134
+    RED,    // 128
+    GREEN,  // 129
+    BLUE,   // 130
+    YELLOW, // 131
+    PURPLE, // 132
+    ORANGE, // 133
+    WHITE   // 134
 };
+
+float zbuffer[SCREEN_W/RAY_RES];
+
+void test_sprite_script(Sprite *self) {
+    float incX = sinf(GetTime());
+    float incY = cosf(GetTime());
+    self->pos.x += incX * 0.01;
+    self->pos.y += incY * 0.01;
+    if(fabs(incX) > 0.75 || fabs(incY) > 0.75) self->texture_id = tx_greenlight2;
+    else self->texture_id = tx_greenlight;
+}
+
+Sprite sprites[] = {
+    {.pos = {6.5, 4.5}, .texture_id = tx_pillar, .vmove=-0.7},
+    {.pos = {5.5, 5.5}, .texture_id = tx_greenlight, .update = test_sprite_script},
+    {.pos = {2.5, 3.5}, .texture_id = tx_barrel},
+    {.pos = {3.5, 3.5}, .texture_id = tx_barrel, .vmove=0.25},
+};
+#define NUM_SPRITES ARRAY_LEN(sprites)
+
+static int compare_sprite_dist(const void *a, const void *b) {
+    const Sprite *sa = (const Sprite *)a;
+    const Sprite *sb = (const Sprite *)b;
+    if (sa->dist < sb->dist) return 1;
+    if (sa->dist > sb->dist) return -1;
+    return 0;
+}
 
 void init_game() {
     for (int i = 0; i < ROWS; i++) {
@@ -120,8 +160,9 @@ void raycast_walls(const Player *p, Vector2 dir, int slice_x) {
             uint8_t map_cell = map[(int)cell.y][(int)cell.x];
             if (map_cell) {
                 // draw slice
-                float dist = Vector2DotProduct(Vector2Subtract(rs, p->pos), p->dir) / ASPECT_RATIO;
-                int h = SCREEN_H / dist;
+                float dist = Vector2DotProduct(Vector2Subtract(rs, p->pos), p->dir);
+                zbuffer[slice_x / RAY_RES] = dist;
+                int h = SCREEN_W / dist;
                 float bright_factor = 1.0 / dist - 0.9;
                 if (bright_factor >= 0.0) bright_factor = 0.0;
 
@@ -173,6 +214,7 @@ void raycast_walls(const Player *p, Vector2 dir, int slice_x) {
         #endif
         rs = new_rs;
     }
+    zbuffer[slice_x / RAY_RES] = MAX_RENDER_DIST;
 }
 
 bool check_for_obstacle(Vector2 pos, Vector2 dir, float threshold)
@@ -272,6 +314,73 @@ void draw_background(const Player *p) {
     }
 }
 
+void draw_sprites(const Player *p) {
+    for (size_t i = 0; i < NUM_SPRITES; i++) {
+        if (sprites[i].update) {
+            sprites[i].update(&sprites[i]);
+        }
+        sprites[i].dist = Vector2LengthSqr(Vector2Subtract(sprites[i].pos, p->pos));
+    }
+
+    qsort(sprites, NUM_SPRITES, sizeof(Sprite), compare_sprite_dist);
+
+    Vector2 plane = {
+        -p->dir.y * tanf(FOV_ANGLE / 2.0f),
+         p->dir.x * tanf(FOV_ANGLE / 2.0f)
+    };
+
+    for (size_t i = 0; i < NUM_SPRITES; i++) {
+        Sprite sprite = sprites[i];
+
+        Vector2 rel = Vector2Subtract(sprite.pos, p->pos);
+        float invDet = 1.0f / (plane.x * p->dir.y - p->dir.x * plane.y);
+        Vector2 transform = {
+            .x = p->dir.y * rel.x - p->dir.x * rel.y,
+            .y = -plane.y * rel.x + plane.x * rel.y
+        };
+        transform = Vector2Scale(transform, invDet);
+
+        if (transform.y <= 0.0f || transform.y >= MAX_RENDER_DIST) continue;
+
+        int spriteScreenX = (int)((SCREEN_W / 2.0f) * (1 + transform.x / transform.y));
+        int vmove = (int)((sprite.vmove*SCREEN_W) / transform.y);
+
+        int spriteHeight = abs((int)((SCREEN_W * (1.0 - sprite.vdiv)) / transform.y));
+        int drawStartY = (-spriteHeight + SCREEN_H)/2;
+        if (vmove >= 0) drawStartY += vmove;
+        if (drawStartY < 0) drawStartY = 0;
+        int drawEndY = (spriteHeight + SCREEN_H)/2;
+        if(vmove < 0) drawEndY += vmove;
+        if (drawEndY >= SCREEN_H) drawEndY = SCREEN_H - 1;
+
+        int spriteWidth = abs((int)((SCREEN_W * (1.0 - sprite.hdiv)) / transform.y));
+        int drawStartX = -spriteWidth / 2 + spriteScreenX;
+        if (drawStartX < 0) drawStartX = 0;
+        int drawEndX = spriteWidth / 2 + spriteScreenX;
+        if (drawEndX >= SCREEN_W) drawEndX = SCREEN_W - 1;
+
+        const pixel_t *tex = assets_map[sprite.texture_id];
+
+        for (int x = drawStartX; x < drawEndX; x += RAY_RES) {
+            int texX = (x - (-spriteWidth / 2 + spriteScreenX)) * TEXTURE_SIZE / spriteWidth;
+
+            if (transform.y < zbuffer[x / RAY_RES]) {
+                for (int y = drawStartY; y < drawEndY; y += RAY_RES) {
+                    int d = ((y - vmove)*256 - SCREEN_H * 128 + spriteHeight * 128);
+                    int texY = (d * TEXTURE_SIZE) / (spriteHeight * 256);
+
+                    pixel_t texel = tex[texY * TEXTURE_SIZE + texX];
+                    if (texel != EMPTY_PIXEL) {
+                        Color c = GetColor(texel);
+                        c = ColorBrightness(c, -(transform.y / MAX_RENDER_DIST));
+                        DrawRectangle(x, y, RAY_RES, RAY_RES, c);
+                    }
+                }
+            }
+        }
+    }
+}
+
 #ifdef ESP32
 int app_main()
 #else
@@ -289,6 +398,7 @@ int main()
         BeginDrawing();
         draw_background(&p);
         draw_walls(&p);
+        draw_sprites(&p);
         #ifdef DEBUG
         draw_minimap();
         draw_minimap_player(p.pos);
