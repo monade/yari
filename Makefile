@@ -61,13 +61,13 @@ run: ray
 build/example_game.o: assets example/game/main/main.c
 	$(CC) $(WASM_CFLAGS) -c example/game/main/main.c -o build/example_game.o
 
-example/web/game.wasm: build/example_game.o build/raycast/libraycast_wasm.a
-	wasm-ld $(WASM_LIBS) build/example_game.o -o example/web/game.wasm
+docs/game.wasm: build/example_game.o build/raycast/libraycast_wasm.a
+	wasm-ld $(WASM_LIBS) build/example_game.o -o docs/game.wasm
 
-wasm: example/web/game.wasm
+wasm: docs/game.wasm
 
 run-wasm: wasm
-	npx serve example/web
+	npx serve docs
 
 # ESP32
 esp32-build:
