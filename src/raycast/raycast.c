@@ -146,7 +146,7 @@ void draw_sprites(GameState *state) {
     Player *p = &state->player;
     for (size_t i = 0; i < state->num_sprites; i++) {
         if (state->sprites[i].update) {
-            state->sprites[i].update(&state->sprites[i]);
+            state->sprites[i].update(state, &state->sprites[i]);
         }
         state->sprites[i].dist = Vector2LengthSqr(Vector2Subtract(state->sprites[i].pos, p->pos));
     }
@@ -228,13 +228,15 @@ void _init_game() {
     inputs_init();
 }
 
+
 void _update_game() {
-    begin_drawing();
-    draw_background(&state);
-    draw_walls(&state);
-    draw_sprites(&state);
-    update_game(&state);
-    end_drawing();
+  begin_drawing();
+  draw_background(&state);
+  draw_walls(&state);
+  draw_sprites(&state);
+  render_screen();
+  update_game(&state);
+  end_drawing();
 }
 
 void _free_game() {

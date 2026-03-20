@@ -2,8 +2,7 @@
 #define RAYCAST_H
 
 #define RAYMATH_STATIC_INLINE
-#include <stdio.h>
-
+#include <stddef.h>
 #include "raymath.h"
 #include "renderer.h"
 #include "inputs.h"
@@ -15,6 +14,8 @@ typedef struct {
     float collision_threshold;
 } Player;
 
+typedef struct GameState GameState;
+
 typedef struct Sprite {
     Vector2 pos;
     int texture_id;
@@ -24,7 +25,7 @@ typedef struct Sprite {
     float vmove;
     uint32_t collision_mask;
     float collision_threshold;
-    void (*update)(struct Sprite *self);
+    void (*update)(GameState *state, struct Sprite *self);
 } Sprite;
 
 typedef struct GameState {
@@ -55,10 +56,20 @@ void draw_background(GameState *state);
 
 void draw_sprites(GameState *state);
 
+#ifdef WASM
+__attribute__((export_name("wasm_init")))
+#endif
 void _init_game();
+
 void init_game(GameState *state);
+
+#ifdef WASM
+__attribute__((export_name("wasm_frame")))
+#endif
 void _update_game();
+
 void update_game(GameState *state);
+
 void _free_game();
 
 #include "physics.h"

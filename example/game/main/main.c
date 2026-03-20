@@ -1,20 +1,18 @@
-#include <stdio.h>
-
-#include "raycast.h"
+#include <raycast.h>
 #include "assets.h"
 
 #define ARRAY_LEN(array) (sizeof(array) / sizeof(array[0]))
 
 #ifdef ESP32
 #define TARGET_FPS 30
-#define SCREEN_W LCD_W
-#define SCREEN_H LCD_H
+#define SCREEN_W 240
+#define SCREEN_H 136
 #define RAY_RES 2
 #else
 #define TARGET_FPS 60
 #define SCREEN_W 800
 #define SCREEN_H 600
-#define RAY_RES 2
+#define RAY_RES 1
 #endif
 
 #define COLS 100
@@ -32,8 +30,8 @@
 // 0 null, 1-127 texture_id, 128-255 color_id
 static uint8_t map[ROWS][COLS] = {0};
 
-
-void test_sprite_script(Sprite *self) {
+void test_sprite_script(GameState *state, Sprite *self) {
+    (void)state;
     float incX = sinf(get_time());
     float incY = cosf(get_time());
     self->pos.x += incX * 0.01;
@@ -84,7 +82,7 @@ void init_game(GameState *state) {
   state->map_rows = ROWS;
   state->sprites = sprites;
   state->num_sprites = NUM_SPRITES;
-  state->player = (Player){.pos = {5.5, 5.5}, .dir = {0, -1}, .collision_threshold = 0.15};
+  state->player = (Player){.pos = {10.5, 5.5}, .dir = {0, 1}, .collision_threshold = 0.15};
   state->assets_map = assets_map;
   state->floor_texture = tx_greystone;
   state->ceil_texture = tx_greystone;
@@ -126,9 +124,21 @@ void move_player(GameState *state) {
     }
 }
 
+#ifdef DEBUG
+#include <stdio.h>
+void print_fps() {
+    char buffer[32];
+    snprintf(buffer, sizeof(buffer), "FPS: %.2f", get_fps());
+    draw_text(buffer, 10, 10, 20, C_WHITE);
+}
+#endif
+
 void update_game(GameState *state) {
     move_player(state);
+#ifdef DEBUG
+    print_fps();
+#endif
 }
 
 #define RAYCAST_MAIN
-#include "raycast.h"
+#include <raycast.h>

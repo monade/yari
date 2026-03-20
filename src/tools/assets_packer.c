@@ -61,11 +61,7 @@ int main(int argc, char **argv) {
     str_append(&out, "#define ASSETS_H\n");
     str_append(&out, "#include <stdint.h>\n");
     str_append(&out, "#include <stddef.h>\n\n");
-    str_append(&out, "#ifdef ESP32\n");
-    str_append(&out, "typedef uint16_t pixel_t;\n");
-    str_append(&out, "#else\n");
-    str_append(&out, "typedef uint32_t pixel_t;\n");
-    str_append(&out, "#endif\n\n");
+    str_append(&out, "#include <colors.h>\n\n");
 
     DIR *d = opendir(argv[1]);
     struct dirent *dir;
@@ -94,7 +90,7 @@ int main(int argc, char **argv) {
         }
         
         str_appendf(&out, "// %s\n", dir->d_name);
-        str_append(&out, "#ifdef ESP32\n");
+        str_append(&out, "#ifdef COLOR_565\n");
         generate_rgb_565(&out, name, bitmap, x, y, ch);
         str_append(&out, "#else\n");
         generate_rgb_32(&out, name, bitmap, x, y, ch);

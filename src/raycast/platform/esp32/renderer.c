@@ -1,7 +1,9 @@
 #include <stdint.h>
 #include <esp_timer.h>
 #include "driver/spi_master.h"
+#include "driver/gpio.h"
 #include "renderer.h"
+#include "inputs.h"
 #include "colors.h"
 
 #ifdef FB_DRAM
@@ -198,6 +200,11 @@ void draw_rectangle(int posX, int posY, int width, int height, pixel_t color) {
 
 
 
+static void set_target_fps(unsigned int fps) {
+    target_fps = fps;
+    target_frame_time_us = 1000000 / fps;
+}
+
 void renderer_init(int width, int height, const char *title, unsigned int target_fps) {
     (void)width;
     (void)height;
@@ -211,25 +218,22 @@ bool game_should_close() {
     return 0;
 }
 
-static void set_target_fps(unsigned int fps) {
-    target_fps = fps;
-    target_frame_time_us = 1000000 / fps;
-}
-
 void begin_drawing() {
     frame_start_time_us = esp_timer_get_time();
 }
 
+void render_screen() {
+  lcd_set_window(0, 0, LCD_W - 1, LCD_H - 1);
+  gpio_set_level(PIN_DC, 1);
+  
+  spi_transaction_t t = {0};
+  t.length = SCREEN_BUFFER_SIZE * 8;
+  t.tx_buffer = ((uint8_t*)framebuffer);
+  
+  ESP_ERROR_CHECK(spi_device_transmit(spi, &t));
+}
+
 void end_drawing() {
-    lcd_set_window(0, 0, LCD_W - 1, LCD_H - 1);
-    gpio_set_level(PIN_DC, 1);
-    
-    spi_transaction_t t = {0};
-    t.length = SCREEN_BUFFER_SIZE * 8;
-    t.tx_buffer = ((uint8_t*)framebuffer);
-    
-    ESP_ERROR_CHECK(spi_device_transmit(spi, &t));
-    
     if (target_fps > 0) {
         int64_t frame_end_time_us = esp_timer_get_time();
         int64_t frame_elapsed_us = frame_end_time_us - frame_start_time_us;
@@ -255,6 +259,21 @@ float get_frame_time() {
     return (float)delta_us / 1000000.0f;
 }
 
-int get_time() {
-    return esp_timer_get_time() / 1000; // Return time in milliseconds
+float get_time() {
+    return esp_timer_get_time() / 1000000.0f; // Return time in seconds
+}
+
+void draw_text(const char* text, int x, int y, int font_size, pixel_t c) {
+    // no text rendering in this simple example
+    (void)text;
+    (void)x;
+    (void)y;
+    (void)font_size;
+    (void)c;
+}
+
+float get_fps() {
+    float frame_time = get_frame_time();
+    if (frame_time <= 0.0f) return 0.0f;
+    return 1.0f / frame_time;
 }

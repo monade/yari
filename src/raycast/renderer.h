@@ -9,7 +9,7 @@
 
 float get_frame_time();
 
-int get_time();
+float get_time();
 
 void draw_rectangle(int x, int y, int width, int height, pixel_t color);
 
@@ -19,6 +19,12 @@ bool game_should_close();
 
 void begin_drawing();
 
+void render_screen();
+
 void end_drawing();
+
+void draw_text(const char* text, int x, int y, int font_size, pixel_t c);
+
+float get_fps();
 
 #endif // RENDERER_H

@@ -27,13 +27,24 @@ bool game_should_close() {
 void begin_drawing() {
     BeginDrawing();
 }
-
-void end_drawing() {
+  
+void render_screen() {
     UpdateTexture(frame_texture, frame_buffer.data);
     DrawTexture(frame_texture, 0, 0, WHITE);
+}
+
+void end_drawing() {
     EndDrawing();
 }
 
-int get_time() {
-    return GetTime();
+float get_time() {
+    return (float)GetTime();
+}
+
+void draw_text(const char* text, int x, int y, int font_size, pixel_t c) {
+    DrawText(text, x, y, font_size, GetColor(c));
+}
+
+float get_fps() {
+    return (float)GetFPS();
 }
