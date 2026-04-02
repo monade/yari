@@ -234,8 +234,8 @@ void _update_game() {
   draw_background(&state);
   draw_walls(&state);
   draw_sprites(&state);
-  render_screen();
   update_game(&state);
+  render_screen();
   end_drawing();
 }
 

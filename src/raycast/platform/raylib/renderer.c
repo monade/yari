@@ -42,7 +42,7 @@ float get_time() {
 }
 
 void draw_text(const char* text, int x, int y, int font_size, pixel_t c) {
-    DrawText(text, x, y, font_size, GetColor(c));
+    ImageDrawText(&frame_buffer, text, x, y, font_size, GetColor(c));
 }
 
 float get_fps() {

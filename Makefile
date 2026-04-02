@@ -6,7 +6,11 @@ MAIN_CFLAGS = -Wall -Wextra -O2 -DDEBUG -I./src/raycast
 MAIN_LIBS = -Lbuild/raycast -lraycast_raylib $(RAYLIB_LIBS)
 
 WASM_CFLAGS = --target=wasm32 -O2 -flto -DWASM -isystem ./src/raycast/platform/wasm/wasm_sysroot -I./src/raycast -nostdlib -ffreestanding
-WASM_LIBS = --no-entry --export-dynamic --allow-undefined --initial-memory=16777216 -z stack-size=65536 -Lbuild/raycast -lraycast_wasm
+WASM_LIBS = --no-entry --allow-undefined --initial-memory=16777216 -z stack-size=65536 \
+	--export=wasm_init --export=wasm_frame \
+	--export=get_framebuffer --export=get_fb_width --export=get_fb_height
+
+WASM_OBJS = build/raycast_wasm.o build/colors_wasm.o build/inputs_wasm.o build/renderer_wasm.o build/wasm_runtime.o build/physics_wasm.o
 
 
 all: ray wasm esp32-build
@@ -61,8 +65,8 @@ run: ray
 build/example_game.o: assets example/game/main/main.c
 	$(CC) $(WASM_CFLAGS) -c example/game/main/main.c -o build/example_game.o
 
-docs/game.wasm: build/example_game.o build/raycast/libraycast_wasm.a
-	wasm-ld $(WASM_LIBS) build/example_game.o -o docs/game.wasm
+docs/game.wasm: build/example_game.o $(WASM_OBJS)
+	wasm-ld $(WASM_LIBS) build/example_game.o $(WASM_OBJS) -o docs/game.wasm
 
 wasm: docs/game.wasm
 
