@@ -7,6 +7,7 @@
 #include "renderer.h"
 #include "inputs.h"
 #include "colors.h"
+#include "da.h"
 
 typedef struct {
     Vector2 pos;
@@ -30,6 +31,12 @@ typedef struct Entity {
     void (*update)(GameState *state, struct Entity *self);
 } Entity;
 
+typedef struct {
+    Entity *data;
+    size_t length;
+    size_t capacity;
+} Entities;
+
 typedef struct GameState {
     Player player;
     int screen_width;
@@ -39,8 +46,7 @@ typedef struct GameState {
     uint8_t *map;
     uint8_t map_cols;
     uint8_t map_rows;
-    Entity *entities;
-    size_t num_entities;
+    Entities entities;
     unsigned int ray_res;
     float *zbuffer;
     const pixel_t **assets_map;

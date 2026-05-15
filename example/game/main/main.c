@@ -38,16 +38,6 @@ void test_sprite_script(GameState *state, Entity *self) {
     else self->texture_id = tx_greenlight;
 }
 
-Entity sprites[] = {
-    {.pos = {6.5, 4.5}, .texture_id = tx_pillar, .vmove=-0.7, .collision_threshold = 0.25, .collision_mask = 1},
-    {.pos = {5.5, 5.5}, .texture_id = tx_greenlight, .update = test_sprite_script, .collision_threshold = 0.25, .collision_mask = 1},
-    {.pos = {2.5, 3.5}, .texture_id = tx_barrel, .collision_threshold = 0.25, .collision_mask = 1},
-    {.pos = {3.5, 3.5}, .texture_id = tx_barrel, .vmove=0.25, .collision_threshold = 0.25, .collision_mask = 1},
-};
-#define NUM_SPRITES ARRAY_LEN(sprites)
-
-
-
 void init_map() {
     for (int i = 0; i < ROWS; i++) {
         map[i][0] = tx_bricks;
@@ -78,8 +68,10 @@ void init_game(GameState *state) {
   state->map = (uint8_t *)map;
   state->map_cols = COLS;
   state->map_rows = ROWS;
-  state->entities = sprites;
-  state->num_entities = NUM_SPRITES;
+  da_append(&state->entities, ((Entity){.pos = {6.5, 4.5}, .texture_id = tx_pillar, .vmove=-0.7, .collision_threshold = 0.25, .collision_mask = 1}));
+  da_append(&state->entities, ((Entity){.pos = {5.5, 5.5}, .texture_id = tx_greenlight, .update = test_sprite_script, .collision_threshold = 0.25, .collision_mask = 1}));
+  da_append(&state->entities, ((Entity){.pos = {2.5, 3.5}, .texture_id = tx_barrel, .collision_threshold = 0.25, .collision_mask = 1}));
+  da_append(&state->entities, ((Entity){.pos = {3.5, 3.5}, .texture_id = tx_barrel, .vmove=0.25, .collision_threshold = 0.25, .collision_mask = 1}));
   state->player = (Player){.pos = {10.5, 5.5}, .dir = {0, 1}, .collision_threshold = 0.15};
   state->assets_map = assets_map;
   state->floor_texture = tx_greystone;

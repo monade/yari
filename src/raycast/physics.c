@@ -24,9 +24,9 @@ bool check_player_collision(GameState *state, Vector2 next_pos) {
     if(state->map[cell_y * state->map_cols + cell_x]) {
         return true;
     }
-    for(size_t i=0; i<state->num_entities; i++) {
-        if(state->entities[i].disabled) continue;
-        Entity *sprite = &state->entities[i];
+    for(size_t i=0; i<state->entities.length; i++) {
+        if(state->entities.data[i].disabled) continue;
+        Entity *sprite = &state->entities.data[i];
         if(!sprite->collision_mask) continue;
         if(Vector2Distance(next_pos, sprite->pos) < sprite->collision_threshold + state->player.collision_threshold) {
             return true;

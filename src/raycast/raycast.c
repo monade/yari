@@ -144,24 +144,24 @@ void draw_background(GameState *state) {
 
 void draw_entities(GameState *state) {
     Player *p = &state->player;
-    for (size_t i = 0; i < state->num_entities; i++) {
-        if (state->entities[i].disabled) continue;
-        if (state->entities[i].update) {
-            state->entities[i].update(state, &state->entities[i]);
+    for (size_t i = 0; i < state->entities.length; i++) {
+        if (state->entities.data[i].disabled) continue;
+        if (state->entities.data[i].update) {
+            state->entities.data[i].update(state, &state->entities.data[i]);
         }
-        state->entities[i].dist = Vector2LengthSqr(Vector2Subtract(state->entities[i].pos, p->pos));
+        state->entities.data[i].dist = Vector2LengthSqr(Vector2Subtract(state->entities.data[i].pos, p->pos));
     }
 
-    qsort(state->entities, state->num_entities, sizeof(Entity), compare_sprite_dist);
+    qsort(state->entities.data, state->entities.length, sizeof(Entity), compare_sprite_dist);
 
     Vector2 plane = {
         -p->dir.y * tanf(FOV_ANGLE / 2.0f),
          p->dir.x * tanf(FOV_ANGLE / 2.0f)
     };
 
-    for (size_t i = 0; i < state->num_entities; i++) {
-        if (state->entities[i].disabled) continue;
-        Entity sprite = state->entities[i];
+    for (size_t i = 0; i < state->entities.length; i++) {
+        if (state->entities.data[i].disabled) continue;
+        Entity sprite = state->entities.data[i];
 
         Vector2 rel = Vector2Subtract(sprite.pos, p->pos);
         float invDet = 1.0f / (plane.x * p->dir.y - p->dir.x * plane.y);

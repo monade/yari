@@ -65,6 +65,11 @@ void *malloc(size_t size) {
     return p;
 }
 
+void *realloc(void *ptr, size_t size) {
+    (void)ptr; // bump allocator doesn't free, so realloc is just malloc
+    return malloc(size);
+}
+
 void free(void *ptr) {
     (void)ptr; // bump allocator doesn't free
 }
@@ -96,3 +101,6 @@ void qsort(void *base, size_t nmemb, size_t size,
 // =================== abs ===================
 
 int abs(int x) { return x < 0 ? -x : x; }
+
+// =================== assert ===================
+void assert(int condition) {}
