@@ -228,12 +228,15 @@ void _init_game() {
     inputs_init();
 }
 
-
-void _update_game() {
-  begin_drawing();
+void draw_game() {
   draw_background(&state);
   draw_walls(&state);
   draw_sprites(&state);
+}
+
+
+void _update_game() {
+  begin_drawing();
   update_game(&state);
   render_screen();
   end_drawing();

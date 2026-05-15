@@ -2,8 +2,6 @@
 
 #ifdef COLOR_565
 pixel_t color_brightness(pixel_t color, float factor) {
-    pixel_t result = color;
-
     if (factor > 1.0f) factor = 1.0f;
     else if (factor < -1.0f) factor = -1.0f;
 

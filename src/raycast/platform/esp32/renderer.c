@@ -186,6 +186,9 @@ void draw_rectangle(int posX, int posY, int width, int height, pixel_t color) {
     if (posY + height > LCD_H) height = LCD_H - posY;
     if (width <= 0 || height <= 0) return;
 
+    // big endian framebuffer
+    color = (color << 8) | (color >> 8);
+
     for (int y = 0; y < height; y++) {
         int lCD_offset = (posY + y) * LCD_W + posX;
         for (int x = 0; x < width; x++) {

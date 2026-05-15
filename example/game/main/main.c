@@ -1,3 +1,4 @@
+#define RAYCAST_MAIN
 #include <raycast.h>
 #include "assets.h"
 
@@ -21,9 +22,6 @@
 
 #define PLAYER_ROTATION_SPEED 1.25
 #define PLAYER_SPEED 2.5
-
-#define POINT_R 2.5
-#define LINE_THICKNESS 1.5
 
 
 
@@ -134,11 +132,9 @@ void print_fps() {
 #endif
 
 void update_game(GameState *state) {
+    draw_game();
     move_player(state);
 #ifdef DEBUG
     print_fps();
 #endif
 }
-
-#define RAYCAST_MAIN
-#include <raycast.h>

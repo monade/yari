@@ -56,6 +56,8 @@ void draw_background(GameState *state);
 
 void draw_sprites(GameState *state);
 
+void draw_game();
+
 #ifdef WASM
 __attribute__((export_name("wasm_init")))
 #endif
@@ -77,12 +79,14 @@ void _free_game();
 #endif // RAYCAST_H
 
 #ifdef RAYCAST_MAIN
+#undef RAYCAST_MAIN
 
 #ifdef ESP32
-int app_main() {
+int app_main()
 #else
-int main() {
+int main()
 #endif
+{
     _init_game();
     while (!game_should_close()) {
         _update_game();
