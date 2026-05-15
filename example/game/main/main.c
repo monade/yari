@@ -130,6 +130,7 @@ void print_fps() {
     char buffer[32];
     snprintf(buffer, sizeof(buffer), "FPS:%.2f", get_fps());
     draw_text(buffer, 5, 20, *fonts[FONT_MD], C_RED);
+    draw_asset(assets_map[tx_barrel], 5, 40, 64, 64, 64);
 }
 #endif
 
