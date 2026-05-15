@@ -1,5 +1,6 @@
 #define RAYCAST_MAIN
 #include <raycast.h>
+#include <stdio.h>
 #include <hud.h>
 #include "assets.h"
 #include "fonts.h"
@@ -86,6 +87,7 @@ void init_game(GameState *state) {
   state->assets_map = assets_map;
   state->floor_texture = tx_greystone;
   state->ceil_texture = tx_greystone;
+  state->score = 0;
 }
 
 
@@ -124,19 +126,32 @@ void move_player(GameState *state) {
     }
 }
 
-#ifdef DEBUG
-#include <stdio.h>
 void print_fps() {
     char buffer[32];
-    snprintf(buffer, sizeof(buffer), "FPS:%.2f", get_fps());
-    draw_text(buffer, 5, 20, *fonts[FONT_MD], C_RED);
-    draw_asset(assets_map[tx_barrel], 5, 40, 64, 64, 64);
+    snprintf(buffer, sizeof(buffer), "FPS:%02d", (int) get_fps());
+    draw_text(buffer, SCREEN_W - 85, SCREEN_H - 15, *fonts[FONT_SM], C_RED);
 }
-#endif
+
+void draw_hud(const GameState* state) {
+    (void)state;
+    char buffer[6];
+    draw_text("SCORE", 5, 20, *fonts[FONT_MD], C_WHITE);
+    snprintf(buffer, sizeof(buffer), "%05d", state->score);
+    draw_text(buffer, 5, 45, *fonts[FONT_MD], C_WHITE);
+}
+
+void update_state(GameState* state, const float delta_time) {
+    (void)state;
+    // Example: increase score over time
+    state->score += (int)(delta_time * 10000);
+}
 
 void update_game(GameState *state) {
+    const float frame_time = get_frame_time();
+    update_state(state, frame_time);
     draw_game();
     move_player(state);
+    draw_hud(state);
 #ifdef DEBUG
     print_fps();
 #endif
