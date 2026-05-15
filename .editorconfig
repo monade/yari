@@ -1,4 +1,4 @@
-## indent 2
+## indent 4
 [*.{c,h}]
 indent_style = space
-indent_size = 2
+indent_size = 4
