@@ -150,6 +150,8 @@ void draw_hud(const GameState* state) {
     draw_text("TIME", SCREEN_W - 45, 17, *fonts[FONT_SM], C_WHITE);
     snprintf(buffer, sizeof(buffer), "%04d", time);
     draw_text(buffer, SCREEN_W - 45, 27, *fonts[FONT_SM], C_WHITE);
+    // SPRITE
+    draw_asset((pixel_t*)assets_map[tx_barrel], 5, 50, 45, 45, 64);
 }
 
 void update_state(GameState* state) {

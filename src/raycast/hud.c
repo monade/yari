@@ -1,15 +1,52 @@
 #include "hud.h"
 #include "renderer.h"
 
-void draw_asset(pixel_t *asset, int x, int y, int width, int height, int row_stride) {
-    for (int row = 0; row < height; row++) {
-        for (int col = 0; col < width; col++) {
-            draw_rectangle(x + col, y + row, 1, 1, asset[row * row_stride + col]);
+/**
+ *
+ * @param asset pointer to pixel data (top-left origin)
+ * @param x x position of the top-left corner
+ * @param y y position of the top-left corner
+ * @param width desired width of the asset on screen in pixels
+ * @param height desired height of the asset on screen in pixels
+ * @param row_stride width of the asset in pixels
+ */
+void draw_asset(
+    const pixel_t* asset,
+    const int x,
+    const int y,
+    const int width,
+    const int height,
+    const int row_stride
+) {
+    for (int dst_row = 0; dst_row < height; dst_row++) {
+        int src_row = dst_row * row_stride / height;
+
+        for (int dst_col = 0; dst_col < width; dst_col++) {
+            int src_col = dst_col * row_stride / width;
+            pixel_t pixel = asset[src_row * row_stride + src_col];
+
+            if (pixel != EMPTY_PIXEL) {
+                draw_rectangle(x + dst_col, y + dst_row, 1, 1, pixel);
+            }
         }
     }
 }
 
-void draw_text(const char *text, int x, int y, font_t font, pixel_t c) {
+/**
+ *
+ * @param text null-terminated string to draw
+ * @param x x position of the top-left corner
+ * @param y y position of the top-left corner
+ * @param font font to use for rendering
+ * @param c color to use for rendering
+ */
+void draw_text(
+    const char* text,
+    const int x,
+    const int y,
+    const font_t font,
+    const pixel_t c
+) {
     int cursor_x = x;
     for (const char *p = text; *p; p++) {
         char ch = *p;

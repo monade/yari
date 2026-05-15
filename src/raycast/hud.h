@@ -33,7 +33,7 @@ typedef struct {
  * @param height     desired height of the asset on screen in pixels
  * @param row_stride width of the asset in pixels
  */
-void draw_asset(pixel_t *asset, int x, int y, int width, int height, int row_stride);
+void draw_asset(const pixel_t* asset, int x, int y, int width, int height, int row_stride);
 
 /**
  * Draw text on the screen using a baked bitmap font.
