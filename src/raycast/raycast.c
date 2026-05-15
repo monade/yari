@@ -5,8 +5,8 @@
 #define THRESHOLD 0.0001
 
 static int compare_sprite_dist(const void *a, const void *b) {
-    const Sprite *sa = (const Sprite *)a;
-    const Sprite *sb = (const Sprite *)b;
+    const Entity *sa = (const Entity *)a;
+    const Entity *sb = (const Entity *)b;
     if (sa->dist < sb->dist) return 1;
     if (sa->dist > sb->dist) return -1;
     return 0;
@@ -142,24 +142,26 @@ void draw_background(GameState *state) {
     }
 }
 
-void draw_sprites(GameState *state) {
+void draw_entities(GameState *state) {
     Player *p = &state->player;
-    for (size_t i = 0; i < state->num_sprites; i++) {
-        if (state->sprites[i].update) {
-            state->sprites[i].update(state, &state->sprites[i]);
+    for (size_t i = 0; i < state->num_entities; i++) {
+        if (state->entities[i].disabled) continue;
+        if (state->entities[i].update) {
+            state->entities[i].update(state, &state->entities[i]);
         }
-        state->sprites[i].dist = Vector2LengthSqr(Vector2Subtract(state->sprites[i].pos, p->pos));
+        state->entities[i].dist = Vector2LengthSqr(Vector2Subtract(state->entities[i].pos, p->pos));
     }
 
-    qsort(state->sprites, state->num_sprites, sizeof(Sprite), compare_sprite_dist);
+    qsort(state->entities, state->num_entities, sizeof(Entity), compare_sprite_dist);
 
     Vector2 plane = {
         -p->dir.y * tanf(FOV_ANGLE / 2.0f),
          p->dir.x * tanf(FOV_ANGLE / 2.0f)
     };
 
-    for (size_t i = 0; i < state->num_sprites; i++) {
-        Sprite sprite = state->sprites[i];
+    for (size_t i = 0; i < state->num_entities; i++) {
+        if (state->entities[i].disabled) continue;
+        Entity sprite = state->entities[i];
 
         Vector2 rel = Vector2Subtract(sprite.pos, p->pos);
         float invDet = 1.0f / (plane.x * p->dir.y - p->dir.x * plane.y);
@@ -231,7 +233,7 @@ void _init_game() {
 void draw_game() {
   draw_background(&state);
   draw_walls(&state);
-  draw_sprites(&state);
+  draw_entities(&state);
 }
 
 

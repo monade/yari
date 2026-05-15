@@ -28,7 +28,7 @@
 // 0 null, 1-127 texture_id, 128-255 color_id
 static uint8_t map[ROWS][COLS] = {0};
 
-void test_sprite_script(GameState *state, Sprite *self) {
+void test_sprite_script(GameState *state, Entity *self) {
     (void)state;
     float incX = sinf(get_time());
     float incY = cosf(get_time());
@@ -38,7 +38,7 @@ void test_sprite_script(GameState *state, Sprite *self) {
     else self->texture_id = tx_greenlight;
 }
 
-Sprite sprites[] = {
+Entity sprites[] = {
     {.pos = {6.5, 4.5}, .texture_id = tx_pillar, .vmove=-0.7, .collision_threshold = 0.25, .collision_mask = 1},
     {.pos = {5.5, 5.5}, .texture_id = tx_greenlight, .update = test_sprite_script, .collision_threshold = 0.25, .collision_mask = 1},
     {.pos = {2.5, 3.5}, .texture_id = tx_barrel, .collision_threshold = 0.25, .collision_mask = 1},
@@ -78,8 +78,8 @@ void init_game(GameState *state) {
   state->map = (uint8_t *)map;
   state->map_cols = COLS;
   state->map_rows = ROWS;
-  state->sprites = sprites;
-  state->num_sprites = NUM_SPRITES;
+  state->entities = sprites;
+  state->num_entities = NUM_SPRITES;
   state->player = (Player){.pos = {10.5, 5.5}, .dir = {0, 1}, .collision_threshold = 0.15};
   state->assets_map = assets_map;
   state->floor_texture = tx_greystone;

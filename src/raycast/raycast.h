@@ -16,17 +16,19 @@ typedef struct {
 
 typedef struct GameState GameState;
 
-typedef struct Sprite {
+typedef struct Entity {
     Vector2 pos;
     int texture_id;
     float dist;
     float vdiv;
     float hdiv;
     float vmove;
+    bool disabled;
+    void *data;
     uint32_t collision_mask;
     float collision_threshold;
-    void (*update)(GameState *state, struct Sprite *self);
-} Sprite;
+    void (*update)(GameState *state, struct Entity *self);
+} Entity;
 
 typedef struct GameState {
     Player player;
@@ -37,8 +39,8 @@ typedef struct GameState {
     uint8_t *map;
     uint8_t map_cols;
     uint8_t map_rows;
-    Sprite *sprites;
-    size_t num_sprites;
+    Entity *entities;
+    size_t num_entities;
     unsigned int ray_res;
     float *zbuffer;
     const pixel_t **assets_map;
@@ -54,7 +56,7 @@ void draw_walls(GameState *state);
 
 void draw_background(GameState *state);
 
-void draw_sprites(GameState *state);
+void draw_entities(GameState *state);
 
 void draw_game();
 
