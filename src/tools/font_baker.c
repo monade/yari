@@ -15,16 +15,18 @@
 // so the extra bytes are not a concern on ESP32.
 static const float PIXEL_HEIGHTS[4] = {10.0f, 16.0f, 28.0f, 48.0f};
 static const char* SIZE_NAMES[4] = {"sm", "md", "lg", "xl"};
-static const int ATLAS_WS[4] = {128, 256, 512, 1024};
-static const int ATLAS_HS[4] = {128, 256, 512, 1024};
+static const int ATLAS_WS[4] = {100, 260, 260, 500};
+static const int ATLAS_HS[4] = {100, 250, 250, 400};
 
+// atlas is 1-bit packed (LSB-first): pixel i → byte i/8, bit i%8
 static void emit_atlas(String *out, const char *name, const char *size,
                        const uint8_t *atlas, int w, int h) {
+    int nbytes = (w * h + 7) / 8;
     str_appendf(out, "static const uint8_t _%s_%s_atlas[%d] = {\n    ",
-                name, size, w * h);
-    for (int i = 0; i < w * h; i++) {
+                name, size, nbytes);
+    for (int i = 0; i < nbytes; i++) {
         str_appendf(out, "0x%02X", atlas[i]);
-        if (i < w * h - 1)
+        if (i < nbytes - 1)
             str_appendf(out, i % 16 == 15 ? ",\n    " : ", ");
     }
     str_appendf(out, "\n};\n");
@@ -52,20 +54,34 @@ static void emit_font_t(String *out, const char *name, const char *size,
 static void bake_font(String *out, const char *name, unsigned char *ttf_data) {
     for (int s = 0; s < 4; s++) {
         int w = ATLAS_WS[s], h = ATLAS_HS[s];
-        uint8_t *atlas = malloc((size_t)(w * h));
+        int npixels = w * h;
+        int nbytes = (npixels + 7) / 8;
+
+        uint8_t* gray = malloc((size_t)npixels);
+        uint8_t* packed = calloc((size_t)nbytes, 1);
         stbtt_bakedchar chars[NUM_CHARS];
 
         int ret = stbtt_BakeFontBitmap(ttf_data, 0, PIXEL_HEIGHTS[s],
-                                        atlas, w, h,
-                                        FIRST_CHAR, NUM_CHARS, chars);
+                                       gray, w, h,
+                                       FIRST_CHAR, NUM_CHARS, chars);
         if (ret < 0)
             log_warn("'%s' size '%s': atlas too small, %d chars didn't fit\n",
                      name, SIZE_NAMES[s], -ret);
 
-        emit_atlas(out, name, SIZE_NAMES[s], atlas, w, h);
+        // threshold 8-bit → 1-bit (LSB-first: pixel i → bit i%8 of byte i/8)
+        for (int i = 0; i < npixels; i++) {
+            if (gray[i] > 127)
+                packed[i >> 3] |= (uint8_t)(1 << (i & 7));
+        }
+        free(gray);
+
+        log_info("  %s: atlas %dx%d → %d bytes\n",
+                 SIZE_NAMES[s], w, h, nbytes);
+
+        emit_atlas(out, name, SIZE_NAMES[s], packed, w, h);
         emit_glyphs(out, name, SIZE_NAMES[s], chars);
         emit_font_t(out, name, SIZE_NAMES[s], w, h);
-        free(atlas);
+        free(packed);
     }
 }
 

@@ -19,7 +19,7 @@ typedef struct {
 } glyph_t;
 
 typedef struct {
-    const uint8_t *atlas;   // grayscale alpha bitmap (atlas_w * atlas_h bytes)
+    const uint8_t *atlas;   // 1-bit packed bitmap, LSB-first: pixel i → bit i%8 of byte i/8
     const glyph_t *glyphs;  // glyph info for ASCII 32–127 (96 entries)
     int atlas_w, atlas_h;
 } font_t;

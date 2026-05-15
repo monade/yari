@@ -21,8 +21,8 @@ void draw_text(const char *text, int x, int y, font_t font, pixel_t c) {
 
         for (int gy = g.y0; gy < g.y1; gy++) {
             for (int gx = g.x0; gx < g.x1; gx++) {
-                uint8_t alpha = font.atlas[gy * font.atlas_w + gx];
-                if (alpha > 127)
+                int i = gy * font.atlas_w + gx;
+                if ((font.atlas[i >> 3] >> (i & 7)) & 1)
                     draw_rectangle(dst_x + (gx - g.x0), dst_y + (gy - g.y0), 1, 1, c);
             }
         }
