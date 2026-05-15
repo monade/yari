@@ -62,6 +62,7 @@
 
 #define da_shrink(da, capacity)                                                        \
     do {                                                                               \
+        DA_ASSERT((capacity) <= (da)->length);                                         \
         if ((da)->capacity > (capacity)) {                                             \
             (da)->capacity = (capacity);                                               \
             (da)->data = DA_REALLOC((da)->data, (da)->capacity * sizeof(*(da)->data)); \
