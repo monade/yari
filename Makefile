@@ -51,8 +51,12 @@ build/raycast/libraycast_wasm.a: build/raycast_wasm.o build/colors_wasm.o build/
 build/assets_packer: src/tools/assets_packer.c
 	$(CC) -o build/assets_packer src/tools/assets_packer.c
 
-assets: build/assets_packer
+build/font_baker: src/tools/font_baker.c
+	$(CC) -o build/font_baker src/tools/font_baker.c -I src/raycast
+
+assets: build/assets_packer build/font_baker
 	build/assets_packer assets example/game/main/assets.h
+	build/font_baker assets/font example/game/main/fonts.h
 
 build/ray: assets build/raycast/libraycast_raylib.a example/game/main/main.c
 	$(CC) $(MAIN_CFLAGS) -o build/ray example/game/main/main.c $(MAIN_LIBS)
