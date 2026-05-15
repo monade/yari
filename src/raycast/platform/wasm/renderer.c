@@ -69,15 +69,6 @@ int get_fb_width(void) { return fb_width; }
 __attribute__((export_name("get_fb_height")))
 int get_fb_height(void) { return fb_height; }
 
-void draw_text(const char* text, int x, int y, int font_size, pixel_t c) {
-    // no text rendering in this simple example
-    (void)text;
-    (void)x;
-    (void)y;
-    (void)font_size;
-    (void)c;
-}
-
 float get_fps() {
     if (frame_time <= 0.0f) return 0.0f;
     return 1.0f / frame_time;

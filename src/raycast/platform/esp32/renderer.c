@@ -266,15 +266,6 @@ float get_time() {
     return esp_timer_get_time() / 1000000.0f; // Return time in seconds
 }
 
-void draw_text(const char* text, int x, int y, int font_size, pixel_t c) {
-    // no text rendering in this simple example
-    (void)text;
-    (void)x;
-    (void)y;
-    (void)font_size;
-    (void)c;
-}
-
 float get_fps() {
     float frame_time = get_frame_time();
     if (frame_time <= 0.0f) return 0.0f;

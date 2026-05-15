@@ -23,8 +23,6 @@ void render_screen();
 
 void end_drawing();
 
-void draw_text(const char* text, int x, int y, int font_size, pixel_t c);
-
 float get_fps();
 
 #endif // RENDERER_H

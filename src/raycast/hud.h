@@ -8,6 +8,7 @@ typedef enum {
     FONT_SM,
     FONT_MD,
     FONT_LG,
+    FONT_XL
 } font_size_t;
 
 // Mirrors stbtt_bakedchar: one entry per ASCII character baked into the atlas.

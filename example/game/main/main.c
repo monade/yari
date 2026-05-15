@@ -1,6 +1,8 @@
 #define RAYCAST_MAIN
 #include <raycast.h>
+#include <hud.h>
 #include "assets.h"
+#include "fonts.h"
 
 #define ARRAY_LEN(array) (sizeof(array) / sizeof(array[0]))
 
@@ -126,8 +128,8 @@ void move_player(GameState *state) {
 #include <stdio.h>
 void print_fps() {
     char buffer[32];
-    snprintf(buffer, sizeof(buffer), "FPS: %.2f", get_fps());
-    draw_text(buffer, 10, 10, 20, C_WHITE);
+    snprintf(buffer, sizeof(buffer), "FPS:%.2f", get_fps());
+    draw_text(buffer, 5, 20, *fonts[FONT_MD], C_RED);
 }
 #endif
 

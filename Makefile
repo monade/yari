@@ -10,8 +10,10 @@ WASM_LIBS = --no-entry --allow-undefined --initial-memory=16777216 -z stack-size
 	--export=wasm_init --export=wasm_frame \
 	--export=get_framebuffer --export=get_fb_width --export=get_fb_height
 
-WASM_OBJS = build/raycast_wasm.o build/colors_wasm.o build/inputs_wasm.o build/renderer_wasm.o build/wasm_runtime.o build/physics_wasm.o
+WASM_OBJS = build/raycast_wasm.o build/colors_wasm.o build/hud_wasm.o build/inputs_wasm.o build/renderer_wasm.o build/wasm_runtime.o build/physics_wasm.o
 
+
+$(shell mkdir -p build)
 
 all: ray wasm esp32-build
 
@@ -21,21 +23,25 @@ build/raycast.o: src/raycast/raycast.c
 	$(CC) $(RAYCAST_CFLAGS) -c src/raycast/raycast.c -o build/raycast.o
 build/colors.o: src/raycast/colors.c
 	$(CC) $(RAYCAST_CFLAGS) -c src/raycast/colors.c -o build/colors.o
+build/hud.o: src/raycast/hud.c
+	$(CC) $(RAYCAST_CFLAGS) -c src/raycast/hud.c -o build/hud.o
 build/inputs.o: src/raycast/platform/raylib/inputs.c
 	$(CC) $(RAYCAST_CFLAGS) $(RAYLIB_CFLAGS) -c src/raycast/platform/raylib/inputs.c -o build/inputs.o
 build/renderer.o: src/raycast/platform/raylib/renderer.c
 	$(CC) $(RAYCAST_CFLAGS) $(RAYLIB_CFLAGS) -c src/raycast/platform/raylib/renderer.c -o build/renderer.o
 build/physics.o: src/raycast/physics.c
 	$(CC) $(RAYCAST_CFLAGS) -c src/raycast/physics.c -o build/physics.o
-build/raycast/libraycast_raylib.a: build/raycast.o build/colors.o build/inputs.o build/renderer.o build/physics.o
+build/raycast/libraycast_raylib.a: build/raycast.o build/colors.o build/hud.o build/inputs.o build/renderer.o build/physics.o
 	@mkdir -p build/raycast
-	ar rcs build/raycast/libraycast_raylib.a build/raycast.o build/colors.o build/inputs.o build/renderer.o build/physics.o
+	ar rcs build/raycast/libraycast_raylib.a build/raycast.o build/colors.o build/hud.o build/inputs.o build/renderer.o build/physics.o
 
 # WASM
 build/raycast_wasm.o: src/raycast/raycast.c
 	$(CC) $(WASM_CFLAGS) -c src/raycast/raycast.c -o build/raycast_wasm.o
 build/colors_wasm.o: src/raycast/colors.c
 	$(CC) $(WASM_CFLAGS) -c src/raycast/colors.c -o build/colors_wasm.o
+build/hud_wasm.o: src/raycast/hud.c
+	$(CC) $(WASM_CFLAGS) -c src/raycast/hud.c -o build/hud_wasm.o
 build/renderer_wasm.o: src/raycast/platform/wasm/renderer.c
 	$(CC) $(WASM_CFLAGS) -c src/raycast/platform/wasm/renderer.c -o build/renderer_wasm.o
 build/inputs_wasm.o: src/raycast/platform/wasm/inputs.c
@@ -44,9 +50,9 @@ build/wasm_runtime.o: src/raycast/platform/wasm/wasm_runtime.c
 	$(CC) $(WASM_CFLAGS) -c src/raycast/platform/wasm/wasm_runtime.c -o build/wasm_runtime.o
 build/physics_wasm.o: src/raycast/physics.c
 	$(CC) $(WASM_CFLAGS) -c src/raycast/physics.c -o build/physics_wasm.o
-build/raycast/libraycast_wasm.a: build/raycast_wasm.o build/colors_wasm.o build/inputs_wasm.o build/renderer_wasm.o build/wasm_runtime.o build/physics_wasm.o
+build/raycast/libraycast_wasm.a: $(WASM_OBJS)
 	@mkdir -p build/raycast
-	ar rcs build/raycast/libraycast_wasm.a build/raycast_wasm.o build/colors_wasm.o build/inputs_wasm.o build/renderer_wasm.o build/wasm_runtime.o build/physics_wasm.o
+	ar rcs build/raycast/libraycast_wasm.a $(WASM_OBJS)
 
 build/assets_packer: src/tools/assets_packer.c
 	$(CC) -o build/assets_packer src/tools/assets_packer.c

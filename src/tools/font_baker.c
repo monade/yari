@@ -13,10 +13,10 @@
 // Sizes are chosen so all ASCII glyphs of press_start_2p (and similar
 // pixel fonts) fit without overflow. Atlas area is stored in flash (const),
 // so the extra bytes are not a concern on ESP32.
-static const float PIXEL_HEIGHTS[3] = { 8.0f,  16.0f,  24.0f };
-static const char *SIZE_NAMES[3]    = { "sm",  "md",   "lg"  };
-static const int   ATLAS_WS[3]      = { 128,   256,    256   };
-static const int   ATLAS_HS[3]      = { 128,   256,    256   };
+static const float PIXEL_HEIGHTS[4] = {10.0f, 16.0f, 28.0f, 48.0f};
+static const char* SIZE_NAMES[4] = {"sm", "md", "lg", "xl"};
+static const int ATLAS_WS[4] = {128, 256, 512, 1024};
+static const int ATLAS_HS[4] = {128, 256, 512, 1024};
 
 static void emit_atlas(String *out, const char *name, const char *size,
                        const uint8_t *atlas, int w, int h) {
@@ -50,7 +50,7 @@ static void emit_font_t(String *out, const char *name, const char *size,
 }
 
 static void bake_font(String *out, const char *name, unsigned char *ttf_data) {
-    for (int s = 0; s < 3; s++) {
+    for (int s = 0; s < 4; s++) {
         int w = ATLAS_WS[s], h = ATLAS_HS[s];
         uint8_t *atlas = malloc((size_t)(w * h));
         stbtt_bakedchar chars[NUM_CHARS];
@@ -120,16 +120,17 @@ int main(int argc, char **argv) {
     }
     closedir(d);
 
-    // fonts[3]: maps font_size_t → font_t* for the first (primary) font found.
-    // draw_text() uses this to resolve FONT_SM / FONT_MD / FONT_LG at runtime.
+    // fonts[4]: maps font_size_t → font_t* for the first (primary) font found.
+    // draw_text() uses this to resolve FONT_SM / FONT_MD / FONT_LG / FONT_XL at runtime.
     if (first_font) {
         str_appendf(&out,
-            "static const font_t *fonts[3] = {\n"
-            "    &%s_sm,\n"
-            "    &%s_md,\n"
-            "    &%s_lg,\n"
-            "};\n",
-            first_font, first_font, first_font);
+                    "static const font_t *fonts[4] = {\n"
+                    "    &%s_sm,\n"
+                    "    &%s_md,\n"
+                    "    &%s_lg,\n"
+                    "    &%s_xl\n"
+                    "};\n",
+                    first_font, first_font, first_font, first_font);
     }
 
     str_append(&out, "#endif // FONTS_H");
