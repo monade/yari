@@ -140,18 +140,15 @@ void draw_hud(const GameState* state) {
     draw_text(buffer, 5, 45, *fonts[FONT_MD], C_WHITE);
 }
 
-void update_state(GameState* state, const float delta_time) {
-    (void)state;
-    // Example: increase score over time
-    state->score += (int)(delta_time * 10000);
+void update_state(GameState* state) {
+    state->score = (int)(state->game_time / 100);
 }
 
 void update_game(GameState *state) {
-    const float frame_time = get_frame_time();
-    update_state(state, frame_time);
     draw_game();
     move_player(state);
     draw_hud(state);
+    update_state(state);
 #ifdef DEBUG
     print_fps();
 #endif

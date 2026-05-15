@@ -235,8 +235,12 @@ void draw_game() {
 }
 
 
+static float game_start_time = -1.0f;
+
 void _update_game() {
   begin_drawing();
+  if (game_start_time < 0.0f) game_start_time = get_time();
+  state.game_time = (uint32_t)((get_time() - game_start_time) * 1000.0f);
   update_game(&state);
   render_screen();
   end_drawing();

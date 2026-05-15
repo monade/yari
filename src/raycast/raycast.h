@@ -45,6 +45,7 @@ typedef struct GameState {
     size_t floor_texture;
     size_t ceil_texture;
     int score;
+    uint32_t game_time; // ms since start of game
 } GameState;
 
 
