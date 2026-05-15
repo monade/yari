@@ -97,6 +97,9 @@ typedef enum {
 } KeyboardKey;
 
 void inputs_init();
+
 bool is_key_down(int key);
+bool is_key_up(int key);
+bool is_key_pressed(int key);
 
 #endif // INPUTS_H
