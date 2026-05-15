@@ -226,7 +226,7 @@ void begin_drawing() {
     int64_t now = esp_timer_get_time();
     cached_frame_time = (last_frame_start_us == 0)
                             ? 0.0f
-                            : (float)(now - last_frame_start_us) / 10000.0f;
+                            : (float)(now - last_frame_start_us) / 1000000.0f;
     last_frame_start_us = now;
     frame_start_time_us = now;
 }

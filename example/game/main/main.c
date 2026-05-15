@@ -133,9 +133,10 @@ void move_player(GameState *state) {
 }
 
 void print_fps() {
-    char buffer[32];
-    snprintf(buffer, sizeof(buffer), "FPS:%02d", (int) get_fps());
-    draw_text(buffer, SCREEN_W - 85, SCREEN_H - 15, *fonts[FONT_SM], C_RED);
+    char buffer[48];
+    snprintf(buffer, sizeof(buffer), "FPS:%02d dt:%dms",
+             (int)get_fps(), (int)(get_frame_time() * 1000));
+    draw_text(buffer, SCREEN_W - 130, SCREEN_H - 15, *fonts[FONT_SM], C_RED);
 }
 
 void draw_hud(const GameState* state) {
