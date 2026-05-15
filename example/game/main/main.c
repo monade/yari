@@ -41,6 +41,12 @@ void test_sprite_script(GameState *state, Sprite *self) {
     else self->texture_id = tx_greenlight;
 }
 
+typedef struct {
+    int score;
+} ExampleGameAttributes;
+
+static ExampleGameAttributes attrs = {0};
+
 Sprite sprites[] = {
     {.pos = {6.5, 4.5}, .texture_id = tx_pillar, .vmove=-0.7, .collision_threshold = 0.25, .collision_mask = 1},
     {.pos = {5.5, 5.5}, .texture_id = tx_greenlight, .update = test_sprite_script, .collision_threshold = 0.25, .collision_mask = 1},
@@ -87,7 +93,7 @@ void init_game(GameState *state) {
   state->assets_map = assets_map;
   state->floor_texture = tx_greystone;
   state->ceil_texture = tx_greystone;
-  state->score = 0;
+  state->state_attributes = &attrs;
 }
 
 
@@ -133,15 +139,22 @@ void print_fps() {
 }
 
 void draw_hud(const GameState* state) {
-    (void)state;
-    char buffer[6];
-    draw_text("SCORE", 5, 20, *fonts[FONT_MD], C_WHITE);
-    snprintf(buffer, sizeof(buffer), "%05d", state->score);
-    draw_text(buffer, 5, 45, *fonts[FONT_MD], C_WHITE);
+    const ExampleGameAttributes* a = state->state_attributes;
+    char buffer[12];
+    // SCORE
+    draw_text("SCORE", 5, 17, *fonts[FONT_SM], C_WHITE);
+    snprintf(buffer, sizeof(buffer), "%05d", a->score);
+    draw_text(buffer, 5, 27, *fonts[FONT_SM], C_WHITE);
+    // TIME
+    const int time = (int)state->game_time / 1000;
+    draw_text("TIME", SCREEN_W - 45, 17, *fonts[FONT_SM], C_WHITE);
+    snprintf(buffer, sizeof(buffer), "%04d", time);
+    draw_text(buffer, SCREEN_W - 45, 27, *fonts[FONT_SM], C_WHITE);
 }
 
 void update_state(GameState* state) {
-    state->score = (int)(state->game_time / 100);
+    ExampleGameAttributes* a = state->state_attributes;
+    a->score = (int)(state->game_time / 100);
 }
 
 void update_game(GameState *state) {
