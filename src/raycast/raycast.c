@@ -70,13 +70,6 @@ void raycast_walls(GameState *state, Vector2 dir, int slice_x) {
             hit_vertical = false;
         }
         Vector2 new_rs = Vector2Add(rs, inc);
-        #ifdef DEBUG
-        // draw raycast on minimap
-        // if (new_rs.x > -1.0 && new_rs.x <= state->map_cols && new_rs.y > -1.0 && new_rs.y <= state->map_rows && rs.x > -1.0 && rs.x <= state->map_cols && rs.y > -1.0 && rs.y <= state->map_rows) {
-        //     DrawLineEx(Vector2Scale(rs, MINIMAP_CELL_SCALE), Vector2Scale(new_rs, MINIMAP_CELL_SCALE), LINE_THICKNESS, BLUE);
-        //     // DrawCircleV(Vector2Scale(rs, MINIMAP_CELL_SCALE), POINT_R, RED);
-        // }
-        #endif
         rs = new_rs;
     }
     state->zbuffer[slice_x / state->ray_res] = MAX_RENDER_DIST;
@@ -146,10 +139,11 @@ void draw_entities(GameState *state) {
     Player *p = &state->player;
     for (size_t i = 0; i < state->entities.length; i++) {
         if (state->entities.data[i].disabled) continue;
-        if (state->entities.data[i].update) {
-            state->entities.data[i].update(state, &state->entities.data[i]);
-        }
-        state->entities.data[i].dist = Vector2LengthSqr(Vector2Subtract(state->entities.data[i].pos, p->pos));
+        state->entities.data[i].dist = Vector2Length(Vector2Subtract(state->entities.data[i].pos, p->pos));
+    }
+    for (size_t i = 0; i < state->entities.length; i++) {
+        if (state->entities.data[i].disabled || state->entities.data[i].update == NULL) continue;
+        state->entities.data[i].update(state, &state->entities.data[i], i);
     }
 
     qsort(state->entities.data, state->entities.length, sizeof(Entity), compare_sprite_dist);

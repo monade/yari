@@ -56,6 +56,7 @@
 
 static int64_t last_time_us = 0;
 static int64_t frame_start_time_us = 0;
+static float current_frame_time = 0.0f;
 static int target_fps = 30;
 static int64_t target_frame_time_us = 1000000 / 30;
 
@@ -223,6 +224,15 @@ bool game_should_close() {
 
 void begin_drawing() {
     frame_start_time_us = esp_timer_get_time();
+
+    if (last_time_us == 0) {
+        last_time_us = frame_start_time_us;
+        current_frame_time = 0.0f;
+    } else {
+        int64_t delta_us = frame_start_time_us - last_time_us;
+        last_time_us = frame_start_time_us;
+        current_frame_time = (float)delta_us / 1000000.0f;
+    }
 }
 
 void render_screen() {
@@ -249,17 +259,7 @@ void end_drawing() {
 }
 
 float get_frame_time() {
-    int64_t current_time_us = esp_timer_get_time();
-    if (last_time_us == 0)
-    {
-        last_time_us = current_time_us;
-        return 0.0f;
-    }
-
-    int64_t delta_us = current_time_us - last_time_us;
-    last_time_us = current_time_us;
-
-    return (float)delta_us / 1000000.0f;
+    return current_frame_time;
 }
 
 float get_time() {

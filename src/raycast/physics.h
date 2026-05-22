@@ -14,7 +14,24 @@ enum RotationDirection {
   COUNTERCLOCKWISE
 };
 
-bool check_player_collision(GameState *state, Vector2 next_pos);
+typedef enum {
+  COLLISION_NONE = 0,
+  COLLISION_WALL,
+  COLLISION_ENTITY
+} CollisionType;
+
+typedef struct {
+  CollisionType type;
+  int cell_x;
+  int cell_y;
+  uint8_t tile;
+  Entity *entity;
+  size_t entity_index;
+} CollisionInfo;
+
+CollisionInfo check_collision(GameState *state, Vector2 next_pos, float threshold, uint32_t collision_mask);
+
+Vector2 slide_player(GameState *state, Vector2 from, Vector2 to, CollisionInfo *hit, uint32_t collision_mask);
 
 Vector2 rotate(Vector2 vector, enum RotationDirection direction, float rotation_speed);
 

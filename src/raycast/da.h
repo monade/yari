@@ -16,6 +16,8 @@
 #define DA_ASSERT assert
 #endif
 
+#define ARRAY_LEN(array) (sizeof(array) / sizeof(array[0]))
+
 /**
  * Dynamic array implementation
  * The dynamic array struct should be defined by the user as follows:

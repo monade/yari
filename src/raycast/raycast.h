@@ -17,6 +17,11 @@ typedef struct {
 
 typedef struct GameState GameState;
 
+#define CMSK_NONE    0
+#define CMSK_WALL    1
+#define CMSK_ENTITY  2
+#define CMSK_ALL    -1
+
 typedef struct Entity {
     Vector2 pos;
     int texture_id;
@@ -28,7 +33,7 @@ typedef struct Entity {
     void *data;
     uint32_t collision_mask;
     float collision_threshold;
-    void (*update)(GameState *state, struct Entity *self);
+    void (*update)(GameState *state, struct Entity *self, size_t index);
 } Entity;
 
 typedef struct {

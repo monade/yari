@@ -23,19 +23,53 @@
 #define PLAYER_ROTATION_SPEED 1.25
 #define PLAYER_SPEED 2.5
 
-
+#define CMSK_PROJECTILE 4
+#define CMSK_OTHER 8
+#define CMSK_PLAYER (CMSK_ALL & ~CMSK_PROJECTILE & ~CMSK_OTHER)
 
 // 0 null, 1-127 texture_id, 128-255 color_id
 static uint8_t map[ROWS][COLS] = {0};
 
-void test_sprite_script(GameState *state, Entity *self) {
+void test_sprite_script(GameState *state, Entity *self, size_t index) {
     (void)state;
+    (void)index;
     float incX = sinf(get_time());
     float incY = cosf(get_time());
     self->pos.x += incX * 0.01;
     self->pos.y += incY * 0.01;
     if(fabs(incX) > 0.75 || fabs(incY) > 0.75) self->texture_id = tx_greenlight2;
     else self->texture_id = tx_greenlight;
+}
+
+void test_pop_on_touch_script(GameState *state, Entity *self, size_t index) {
+    if(self->dist < state->player.collision_threshold + self->collision_threshold) {
+        da_remove_unordered(&state->entities, index);
+    }
+}
+
+void test_projectile_script(GameState *state, Entity *self, size_t index) {
+    self->pos = move(self->pos, state->player.dir, FORWARD, PLAYER_SPEED * 2);
+    if(self->dist > MAX_RENDER_DIST) {
+        da_remove_unordered(&state->entities, index);
+        return;
+    }
+    CollisionInfo hit = check_collision(state, self->pos, self->collision_threshold, CMSK_ALL & ~CMSK_PROJECTILE & ~CMSK_OTHER);
+    if (hit.type != COLLISION_NONE) {
+        da_remove_unordered(&state->entities, index);
+        if (hit.type == COLLISION_ENTITY) {
+            hit.entity->disabled = true;
+        } else if (hit.type == COLLISION_WALL) {
+            int cell_x = hit.cell_x;
+            int cell_y = hit.cell_y;
+            if (cell_x >= 0 && cell_x < state->map_cols && cell_y >= 0 && cell_y < state->map_rows && state->map[cell_y * state->map_cols + cell_x] > 128) {
+                state->map[cell_y * state->map_cols + cell_x] = 0;
+            }
+        }
+    }
+}
+
+void spawn_test_entity(GameState *state) {
+    da_append(&state->entities, ((Entity){.pos = {state->player.pos.x + state->player.dir.x, state->player.pos.y + state->player.dir.y}, .texture_id = tx_barrel, .update = test_projectile_script, .collision_threshold = 0.25, .collision_mask = CMSK_PROJECTILE, .hdiv= 0.7, .vdiv = 0.7}));
 }
 
 void init_map() {
@@ -68,16 +102,15 @@ void init_game(GameState *state) {
   state->map = (uint8_t *)map;
   state->map_cols = COLS;
   state->map_rows = ROWS;
-  da_append(&state->entities, ((Entity){.pos = {6.5, 4.5}, .texture_id = tx_pillar, .vmove=-0.7, .collision_threshold = 0.25, .collision_mask = 1}));
-  da_append(&state->entities, ((Entity){.pos = {5.5, 5.5}, .texture_id = tx_greenlight, .update = test_sprite_script, .collision_threshold = 0.25, .collision_mask = 1}));
-  da_append(&state->entities, ((Entity){.pos = {2.5, 3.5}, .texture_id = tx_barrel, .collision_threshold = 0.25, .collision_mask = 1}));
-  da_append(&state->entities, ((Entity){.pos = {3.5, 3.5}, .texture_id = tx_barrel, .vmove=0.25, .collision_threshold = 0.25, .collision_mask = 1}));
+  da_append(&state->entities, ((Entity){.pos = {6.5, 4.5}, .texture_id = tx_pillar, .vmove=-0.7, .collision_threshold = 0.25, .collision_mask = CMSK_ENTITY}));
+  da_append(&state->entities, ((Entity){.pos = {5.5, 5.5}, .texture_id = tx_greenlight, .update = test_sprite_script, .collision_threshold = 0.25, .collision_mask = CMSK_ENTITY}));
+  da_append(&state->entities, ((Entity){.pos = {2.5, 3.5}, .texture_id = tx_barrel, .update = test_pop_on_touch_script, .collision_threshold = 0.25, .collision_mask = CMSK_OTHER}));
+  da_append(&state->entities, ((Entity){.pos = {3.5, 3.5}, .texture_id = tx_barrel, .vmove=0.25, .collision_threshold = 0.25, .collision_mask = CMSK_ENTITY}));
   state->player = (Player){.pos = {10.5, 5.5}, .dir = {0, 1}, .collision_threshold = 0.15};
   state->assets_map = assets_map;
   state->floor_texture = tx_greystone;
   state->ceil_texture = tx_greystone;
 }
-
 
 
 void move_player(GameState *state) {
@@ -88,30 +121,15 @@ void move_player(GameState *state) {
     if (is_key_down(KEY_D)) {
         p->dir = rotate(p->dir, CLOCKWISE, PLAYER_ROTATION_SPEED);
     }
-    if (is_key_down(KEY_W)) {
-        Vector2 next_pos = move(p->pos, p->dir, FORWARD, PLAYER_SPEED);
-        if (!check_player_collision(state, next_pos)) {
-          p->pos = next_pos;
-        }
-    }
-    if (is_key_down(KEY_S)) {
-        Vector2 next_pos = move(p->pos, p->dir, BACK, PLAYER_SPEED);
-        if (!check_player_collision(state, next_pos)) {
-          p->pos = next_pos;
-        }
-    }
-    if (is_key_down(KEY_E)) {
-        Vector2 next_pos = move(p->pos, p->dir, RIGHT, PLAYER_SPEED);
-        if (!check_player_collision(state, next_pos)) {
-            p->pos = next_pos;
-        }
-    }
-    if (is_key_down(KEY_Q)) {
-        Vector2 next_pos = move(p->pos, p->dir, LEFT, PLAYER_SPEED);
-        if (!check_player_collision(state, next_pos)) {
-            p->pos = next_pos;
-        }
-    }
+
+    Vector2 target = p->pos;
+    if (is_key_down(KEY_W)) target = move(target, p->dir, FORWARD, PLAYER_SPEED);
+    if (is_key_down(KEY_S)) target = move(target, p->dir, BACK, PLAYER_SPEED);
+    if (is_key_down(KEY_E)) target = move(target, p->dir, RIGHT, PLAYER_SPEED);
+    if (is_key_down(KEY_Q)) target = move(target, p->dir, LEFT, PLAYER_SPEED);
+
+    CollisionInfo hit;
+    p->pos = slide_player(state, p->pos, target, &hit, CMSK_PLAYER);
 }
 
 #ifdef DEBUG
@@ -126,6 +144,9 @@ void print_fps() {
 void update_game(GameState *state) {
     draw_game();
     move_player(state);
+    if (is_key_down(KEY_W)) {
+        spawn_test_entity(state);
+    }
 #ifdef DEBUG
     print_fps();
 #endif
