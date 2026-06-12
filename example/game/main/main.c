@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include "assets.h"
 #include "fonts.h"
+#include "level.h"
 
 #define ARRAY_LEN(array) (sizeof(array) / sizeof(array[0]))
 
@@ -20,83 +21,27 @@
 
 #define COLS 100
 #define ROWS 100
-#define CMSK_ENTITY 1
 
 #define PLAYER_ROTATION_SPEED 1.25
 #define PLAYER_SPEED 2.5
 
-#define CMSK_PROJECTILE 4
-#define CMSK_OTHER 8
-#define CMSK_PLAYER (CMSK_ALL & ~CMSK_PROJECTILE & ~CMSK_OTHER)
-
-// 0 null, 1-127 texture_id, 128-255 color_id
-static uint8_t map[ROWS][COLS] = {0};
-
-void test_sprite_script(GameState *state, Entity *self, size_t index) {
-    (void)state;
-    (void)index;
-    float incX = sinf(get_time());
-    float incY = cosf(get_time());
-    self->pos.x += incX * 0.01;
-    self->pos.y += incY * 0.01;
-    if(fabs(incX) > 0.75 || fabs(incY) > 0.75) self->texture_id = tx_greenlight2;
-    else self->texture_id = tx_greenlight;
-}
-
-typedef struct {
-    int score;
-} ExampleGameAttributes;
-
-static ExampleGameAttributes attrs = {0};
-
-Entity sprites[] = {
-    {.pos = {6.5, 4.5}, .texture_id = tx_pillar, .vmove=-0.7, .collision_threshold = 0.25, .collision_mask = 1},
-    {.pos = {5.5, 5.5}, .texture_id = tx_greenlight, .update = test_sprite_script, .collision_threshold = 0.25, .collision_mask = 1},
-    {.pos = {2.5, 3.5}, .texture_id = tx_barrel, .collision_threshold = 0.25, .collision_mask = 1},
-    {.pos = {3.5, 3.5}, .texture_id = tx_barrel, .vmove=0.25, .collision_threshold = 0.25, .collision_mask = 1},
-};
-#define NUM_SPRITES ARRAY_LEN(sprites)
 
 JoystickConfig axes[2];
 
-void init_map() {
-    for (int i = 0; i < ROWS; i++) {
-        map[i][0] = tx_bricks;
-        map[i][COLS - 1] = tx_bricks;
-    }
-    for (int j = 0; j < COLS; j++) {
-        map[0][j] = tx_bricks;
-        map[ROWS - 1][j] = tx_bricks;
-    }
-    map[1][3] = tx_bricks;
-    map[1][4] = 131;
-    map[1][5] = 129;
-    map[2][5] = 133;
-    map[3][4] = 129;
-    map[3][5] = tx_bricks;
-
-    map[7][7] = 130;
-    map[8][8] = 129;
-    map[9][9] = 134;
-}
-
 void init_game(GameState *state) {
-  init_map();
   state->screen_width = SCREEN_W;
   state->screen_height = SCREEN_H;
   state->ray_res = RAY_RES;
   state->target_fps = TARGET_FPS;
-  state->map = (uint8_t *)map;
-  state->map_cols = COLS;
-  state->map_rows = ROWS;
-  da_append(&state->entities, ((Entity){.pos = {6.5, 4.5}, .texture_id = tx_pillar, .vmove=-0.7, .collision_threshold = 0.25, .collision_mask = CMSK_ENTITY}));
-  da_append(&state->entities, ((Entity){.pos = {5.5, 5.5}, .texture_id = tx_greenlight, .update = test_sprite_script, .collision_threshold = 0.25, .collision_mask = CMSK_ENTITY}));
-//   da_append(&state->entities, ((Entity){.pos = {2.5, 3.5}, .texture_id = tx_barrel, .update = test_pop_on_touch_script, .collision_threshold = 0.25, .collision_mask = CMSK_OTHER}));
-  da_append(&state->entities, ((Entity){.pos = {3.5, 3.5}, .texture_id = tx_barrel, .vmove=0.25, .collision_threshold = 0.25, .collision_mask = CMSK_ENTITY}));
-  state->player = (Player){.pos = {10.5, 5.5}, .dir = {0, 1}, .collision_threshold = 0.15};
+  state->map = level_get_map();
+  state->map_cols = MAP_COLS;
+  state->map_rows = MAP_ROWS;
   state->assets_map = assets_map;
-  state->floor_texture = tx_greystone;
-  state->ceil_texture = tx_greystone;
+  state->floor_texture = LEVEL_FLOOR;
+  state->ceil_texture = LEVEL_CEIL;
+  state->player = init_player();
+
+  level_append_exported_entities(&state->entities);
 
   joystick_init(32, 36, axes);
 }
@@ -104,51 +49,24 @@ void init_game(GameState *state) {
 
 void move_player(GameState *state) {
     Player *p = &state->player;
-    float xmov =  joystick_get_axis(axes[0]);
-    float ymov =  joystick_get_axis(axes[1]);
-    if (is_key_down(YARI_KEY_A) || xmov < -0.5) {
-      p->dir = rotate(p->dir, COUNTERCLOCKWISE, PLAYER_ROTATION_SPEED);
+    if (is_key_down(YARI_KEY_A)) {
+        p->dir = rotate(p->dir, COUNTERCLOCKWISE, PLAYER_ROTATION_SPEED);
     }
-    if (is_key_down(YARI_KEY_D) || xmov > 0.5) {
-      p->dir = rotate(p->dir, CLOCKWISE, PLAYER_ROTATION_SPEED);
+    if (is_key_down(YARI_KEY_D)) {
+        p->dir = rotate(p->dir, CLOCKWISE, PLAYER_ROTATION_SPEED);
     }
-    if (is_key_down(YARI_KEY_W) || ymov < -0.5) {
-      Vector2 next_pos = move(p->pos, p->dir, FORWARD, PLAYER_SPEED);
-      if (!check_player_collision(state, next_pos)) {
-          p->pos = next_pos;
-        }
-    }
-    if (is_key_down(YARI_KEY_S) || ymov > 0.5) {
-      Vector2 next_pos = move(p->pos, p->dir, BACK, PLAYER_SPEED);
-      if (!check_player_collision(state, next_pos)) {
-          p->pos = next_pos;
-        }
-    }
-    if (is_key_down(YARI_KEY_E)) {
-        Vector2 next_pos = move(p->pos, p->dir, RIGHT, PLAYER_SPEED);
-        if (!check_player_collision(state, next_pos)) {
-            p->pos = next_pos;
-        }
-    }
-    if (is_key_down(YARI_KEY_Q)) {
-        Vector2 next_pos = move(p->pos, p->dir, LEFT, PLAYER_SPEED);
-        if (!check_player_collision(state, next_pos)) {
-            p->pos = next_pos;
-        }
-    }
-}
 
-void update_state(GameState* state) {
-    ExampleGameAttributes* a = state->state_attributes;
-    a->score = (int)(state->game_time / 100);
+    Vector2 target = p->pos;
+    if (is_key_down(YARI_KEY_W)) target = move(target, p->dir, FORWARD, PLAYER_SPEED);
+    if (is_key_down(YARI_KEY_S)) target = move(target, p->dir, BACK, PLAYER_SPEED);
+    if (is_key_down(YARI_KEY_E)) target = move(target, p->dir, RIGHT, PLAYER_SPEED);
+    if (is_key_down(YARI_KEY_Q)) target = move(target, p->dir, LEFT, PLAYER_SPEED);
+
+    CollisionInfo hit;
+    p->pos = slide_collision(state, p->pos, target, &hit, p->collision_threshold, CMSK_PLAYER);
 }
 
 void update_game(GameState *state) {
     draw_game();
     move_player(state);
-    draw_hud(state);
-    update_state(state);
-#ifdef DEBUG
-    print_fps();
-#endif
 }
