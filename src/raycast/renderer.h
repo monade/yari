@@ -46,7 +46,7 @@ void draw_asset(const pixel_t* asset, int x, int y, int width, int height, int r
  * @param font      font to use (e.g. press_start_2p_sm or press_start_2p_md)
  * @param c         text color
  */
-void draw_text(const char *text, int x, int y, font_t font, pixel_t c);
+void draw_text(const char *text, int x, int y, const font_t *font, pixel_t c);
 
 float get_frame_time();
 

@@ -43,7 +43,7 @@ void draw_text(
     const char* text,
     const int x,
     const int y,
-    const font_t font,
+    const font_t* font,
     const pixel_t c
 ) {
     int cursor_x = x;
@@ -51,14 +51,14 @@ void draw_text(
         char ch = *p;
         if (ch < 32 || ch > 127) continue;
 
-        glyph_t g = font.glyphs[(unsigned char)ch - 32];
+        glyph_t g = font->glyphs[(unsigned char)ch - 32];
         int dst_x = cursor_x + (int)g.xoff;
         int dst_y = y + (int)g.yoff;
 
         for (int gy = g.y0; gy < g.y1; gy++) {
             for (int gx = g.x0; gx < g.x1; gx++) {
-                int i = gy * font.atlas_w + gx;
-                if ((font.atlas[i >> 3] >> (i & 7)) & 1)
+                int i = gy * font->atlas_w + gx;
+                if ((font->atlas[i >> 3] >> (i & 7)) & 1)
                     draw_rectangle(dst_x + (gx - g.x0), dst_y + (gy - g.y0), 1, 1, c);
             }
         }

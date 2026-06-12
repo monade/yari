@@ -28,6 +28,12 @@
 
 JoystickConfig axes[2];
 
+void update_mob(GameState *state, Entity *self, size_t index) {
+    (void)state;
+    (void)index;
+    self->pos.x += 0.01f;
+}
+
 void init_game(GameState *state) {
   state->screen_width = SCREEN_W;
   state->screen_height = SCREEN_H;
@@ -66,7 +72,20 @@ void move_player(GameState *state) {
     p->pos = slide_collision(state, p->pos, target, &hit, p->collision_threshold, CMSK_PLAYER);
 }
 
+int game_state = 0;
+
 void update_game(GameState *state) {
-    draw_game();
-    move_player(state);
+    if(game_state == 0) {
+        draw_text("Press any key to start", 120, 30, fonts[FONT_MD], 0xFFFFFF);
+        if(is_key_pressed(YARI_KEY_W)) {
+            game_state = 1;
+        }
+    } else {
+        draw_game();
+        move_player(state);
+        if(is_key_pressed(YARI_KEY_SPACE)) {
+            Entity e = create_et_pos((Vector2){39.274796f, 52.666969f}, NULL, update_mob);
+            da_append(&state->entities, e);
+        }
+    }
 }
