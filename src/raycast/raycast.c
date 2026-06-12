@@ -5,8 +5,8 @@
 #define THRESHOLD 0.0001
 
 static int compare_sprite_dist(const void *a, const void *b) {
-    const Sprite *sa = (const Sprite *)a;
-    const Sprite *sb = (const Sprite *)b;
+    const Entity *sa = (const Entity *)a;
+    const Entity *sb = (const Entity *)b;
     if (sa->dist < sb->dist) return 1;
     if (sa->dist > sb->dist) return -1;
     return 0;
@@ -70,13 +70,6 @@ void raycast_walls(GameState *state, Vector2 dir, int slice_x) {
             hit_vertical = false;
         }
         Vector2 new_rs = Vector2Add(rs, inc);
-        #ifdef DEBUG
-        // draw raycast on minimap
-        // if (new_rs.x > -1.0 && new_rs.x <= state->map_cols && new_rs.y > -1.0 && new_rs.y <= state->map_rows && rs.x > -1.0 && rs.x <= state->map_cols && rs.y > -1.0 && rs.y <= state->map_rows) {
-        //     DrawLineEx(Vector2Scale(rs, MINIMAP_CELL_SCALE), Vector2Scale(new_rs, MINIMAP_CELL_SCALE), LINE_THICKNESS, BLUE);
-        //     // DrawCircleV(Vector2Scale(rs, MINIMAP_CELL_SCALE), POINT_R, RED);
-        // }
-        #endif
         rs = new_rs;
     }
     state->zbuffer[slice_x / state->ray_res] = MAX_RENDER_DIST;
@@ -142,24 +135,27 @@ void draw_background(GameState *state) {
     }
 }
 
-void draw_sprites(GameState *state) {
+void draw_entities(GameState *state) {
     Player *p = &state->player;
-    for (size_t i = 0; i < state->num_sprites; i++) {
-        if (state->sprites[i].update) {
-            state->sprites[i].update(state, &state->sprites[i]);
-        }
-        state->sprites[i].dist = Vector2LengthSqr(Vector2Subtract(state->sprites[i].pos, p->pos));
+    for (size_t i = 0; i < state->entities.length; i++) {
+        if (state->entities.data[i].disabled) continue;
+        state->entities.data[i].dist = Vector2Length(Vector2Subtract(state->entities.data[i].pos, p->pos));
+    }
+    for (size_t i = 0; i < state->entities.length; i++) {
+        if (state->entities.data[i].disabled || state->entities.data[i].update == NULL) continue;
+        state->entities.data[i].update(state, &state->entities.data[i], i);
     }
 
-    qsort(state->sprites, state->num_sprites, sizeof(Sprite), compare_sprite_dist);
+    qsort(state->entities.data, state->entities.length, sizeof(Entity), compare_sprite_dist);
 
     Vector2 plane = {
         -p->dir.y * tanf(FOV_ANGLE / 2.0f),
          p->dir.x * tanf(FOV_ANGLE / 2.0f)
     };
 
-    for (size_t i = 0; i < state->num_sprites; i++) {
-        Sprite sprite = state->sprites[i];
+    for (size_t i = 0; i < state->entities.length; i++) {
+        if (state->entities.data[i].disabled) continue;
+        Entity sprite = state->entities.data[i];
 
         Vector2 rel = Vector2Subtract(sprite.pos, p->pos);
         float invDet = 1.0f / (plane.x * p->dir.y - p->dir.x * plane.y);
@@ -218,6 +214,7 @@ void _init_game() {
     state.target_fps = 60;
     state.ray_res = 2;
     init_game(&state);
+    state.player.dir = Vector2Normalize(state.player.dir);
     state.zbuffer = malloc(sizeof(float) * (state.screen_width / state.ray_res));
     renderer_init(
         state.screen_width,
@@ -231,12 +228,16 @@ void _init_game() {
 void draw_game() {
   draw_background(&state);
   draw_walls(&state);
-  draw_sprites(&state);
+  draw_entities(&state);
 }
 
 
+static float game_start_time = -1.0f;
+
 void _update_game() {
   begin_drawing();
+  if (game_start_time < 0.0f) game_start_time = get_time();
+  state.game_time = (uint32_t)((get_time() - game_start_time) * 1000.0f);
   update_game(&state);
   render_screen();
   end_drawing();

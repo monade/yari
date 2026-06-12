@@ -7,6 +7,7 @@
 #include "renderer.h"
 #include "inputs.h"
 #include "colors.h"
+#include "da.h"
 
 typedef struct {
     Vector2 pos;
@@ -16,17 +17,29 @@ typedef struct {
 
 typedef struct GameState GameState;
 
-typedef struct Sprite {
+#define CMSK_NONE    0
+#define CMSK_WALL    1
+#define CMSK_ALL    -1
+
+typedef struct Entity {
     Vector2 pos;
     int texture_id;
     float dist;
     float vdiv;
     float hdiv;
     float vmove;
+    bool disabled;
+    void *entity_data;
     uint32_t collision_mask;
     float collision_threshold;
-    void (*update)(GameState *state, struct Sprite *self);
-} Sprite;
+    void (*update)(GameState *state, struct Entity *self, size_t index);
+} Entity;
+
+typedef struct {
+    Entity *data;
+    size_t length;
+    size_t capacity;
+} Entities;
 
 typedef struct GameState {
     Player player;
@@ -37,13 +50,14 @@ typedef struct GameState {
     uint8_t *map;
     uint8_t map_cols;
     uint8_t map_rows;
-    Sprite *sprites;
-    size_t num_sprites;
+    Entities entities;
     unsigned int ray_res;
     float *zbuffer;
     const pixel_t **assets_map;
     size_t floor_texture;
     size_t ceil_texture;
+    uint32_t game_time; // ms since start of game
+    void* state_attributes; // game-defined state
 } GameState;
 
 
@@ -54,7 +68,7 @@ void draw_walls(GameState *state);
 
 void draw_background(GameState *state);
 
-void draw_sprites(GameState *state);
+void draw_entities(GameState *state);
 
 void draw_game();
 
@@ -81,6 +95,10 @@ void _free_game();
 #ifdef RAYCAST_MAIN
 #undef RAYCAST_MAIN
 
+#ifdef PLATFORM_WEB
+#include <emscripten/emscripten.h>
+#endif
+
 #ifdef ESP32
 int app_main()
 #else
@@ -88,9 +106,13 @@ int main()
 #endif
 {
     _init_game();
+#ifdef PLATFORM_WEB
+    emscripten_set_main_loop(_update_game, 0, 1);
+#else
     while (!game_should_close()) {
         _update_game();
     }
+#endif
     _free_game();
     return 0;
 }

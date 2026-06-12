@@ -41,10 +41,6 @@ float get_time() {
     return (float)GetTime();
 }
 
-void draw_text(const char* text, int x, int y, int font_size, pixel_t c) {
-    ImageDrawText(&frame_buffer, text, x, y, font_size, GetColor(c));
-}
-
 float get_fps() {
     return (float)GetFPS();
 }
