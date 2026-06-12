@@ -101,7 +101,17 @@ typedef enum {
     Y_AXIS = 1,
 } JoystickAxis;
 
+typedef struct joystick_axis_t {
+  adc_oneshot_unit_handle_t adc_handle;
+  adc_unit_t adc_unit;
+  adc_channel_t adc_channel;
+  int pin;
+} JoystickConfig;
+
 void inputs_init();
+
+void joystick_init(int joystick_pin_x, int joystick_pin_y, JoystickConfig axes[2]);
+float joystick_get_axis(JoystickConfig axis);
 
 bool is_key_down(int key);
 bool is_key_up(int key);

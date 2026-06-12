@@ -46,7 +46,7 @@ Sprite sprites[] = {
 };
 #define NUM_SPRITES ARRAY_LEN(sprites)
 
-
+JoystickConfig axes[2];
 
 void init_map() {
     for (int i = 0; i < ROWS; i++) {
@@ -84,27 +84,29 @@ void init_game(GameState *state) {
   state->assets_map = assets_map;
   state->floor_texture = tx_greystone;
   state->ceil_texture = tx_greystone;
+
+  joystick_init(32, 36, axes);
 }
 
 
 
 void move_player(GameState *state) {
     Player *p = &state->player;
-    if (is_key_down(KEY_A)) {
-        p->dir = rotate(p->dir, COUNTERCLOCKWISE, PLAYER_ROTATION_SPEED);
+    if (is_key_down(KEY_A) || joystick_get_axis(axes[0]) < -0.5) {
+      p->dir = rotate(p->dir, COUNTERCLOCKWISE, PLAYER_ROTATION_SPEED);
     }
-    if (is_key_down(KEY_D)) {
-        p->dir = rotate(p->dir, CLOCKWISE, PLAYER_ROTATION_SPEED);
+    if (is_key_down(KEY_D) || joystick_get_axis(axes[0]) > 0.5) {
+      p->dir = rotate(p->dir, CLOCKWISE, PLAYER_ROTATION_SPEED);
     }
-    if (is_key_down(KEY_W)) {
-        Vector2 next_pos = move(p->pos, p->dir, FORWARD, PLAYER_SPEED);
-        if (!check_player_collision(state, next_pos)) {
+    if (is_key_down(KEY_W) || joystick_get_axis(axes[1]) < -0.5) {
+      Vector2 next_pos = move(p->pos, p->dir, FORWARD, PLAYER_SPEED);
+      if (!check_player_collision(state, next_pos)) {
           p->pos = next_pos;
         }
     }
-    if (is_key_down(KEY_S)) {
-        Vector2 next_pos = move(p->pos, p->dir, BACK, PLAYER_SPEED);
-        if (!check_player_collision(state, next_pos)) {
+    if (is_key_down(KEY_S) || joystick_get_axis(axes[1]) > 0.5) {
+      Vector2 next_pos = move(p->pos, p->dir, BACK, PLAYER_SPEED);
+      if (!check_player_collision(state, next_pos)) {
           p->pos = next_pos;
         }
     }
