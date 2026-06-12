@@ -34,7 +34,7 @@ static void emit_atlas(String *out, const char *name, const char *size,
 
 static void emit_glyphs(String *out, const char *name, const char *size,
                         const stbtt_bakedchar *chars) {
-    str_appendf(out, "static const glyph_t _%s_%s_glyphs[%d] = {\n",
+    str_appendf(out, "static const yr_glyph_t _%s_%s_glyphs[%d] = {\n",
                 name, size, NUM_CHARS);
     for (int i = 0; i < NUM_CHARS; i++) {
         str_appendf(out, "    {%d,%d,%d,%d,%.3ff,%.3ff,%.3ff},\n",
@@ -47,7 +47,7 @@ static void emit_glyphs(String *out, const char *name, const char *size,
 static void emit_font_t(String *out, const char *name, const char *size,
                         int w, int h) {
     str_appendf(out,
-        "static const font_t %s_%s = { _%s_%s_atlas, _%s_%s_glyphs, %d, %d };\n\n",
+        "static const yr_font_t %s_%s = { _%s_%s_atlas, _%s_%s_glyphs, %d, %d };\n\n",
         name, size, name, size, name, size, w, h);
 }
 
@@ -96,8 +96,8 @@ int main(int argc, char **argv) {
     char *first_font = NULL;
 
     str_append(&out, "// File generated automatically by font_baker.c. DO NOT EDIT.\n");
-    str_append(&out, "#ifndef FONTS_H\n");
-    str_append(&out, "#define FONTS_H\n");
+    str_append(&out, "#ifndef YR_FONTS_H\n");
+    str_append(&out, "#define YR_FONTS_H\n");
     str_append(&out, "#include <stdint.h>\n");
     str_append(&out, "#include <renderer.h>\n\n");
 
@@ -136,11 +136,11 @@ int main(int argc, char **argv) {
     }
     closedir(d);
 
-    // fonts[4]: maps font_size_t → font_t* for the first (primary) font found.
+    // fonts[4]: maps font_size_t → yr_font_t* for the first (primary) font found.
     // draw_text() uses this to resolve FONT_SM / FONT_MD / FONT_LG / FONT_XL at runtime.
     if (first_font) {
         str_appendf(&out,
-                    "static const font_t *fonts[4] = {\n"
+                    "static const yr_font_t *fonts[4] = {\n"
                     "    &%s_sm,\n"
                     "    &%s_md,\n"
                     "    &%s_lg,\n"
@@ -149,7 +149,7 @@ int main(int argc, char **argv) {
                     first_font, first_font, first_font, first_font);
     }
 
-    str_append(&out, "#endif // FONTS_H");
+    str_append(&out, "#endif // YR_FONTS_H");
 
     write_entire_file(argv[2], &out);
     da_free(&out);

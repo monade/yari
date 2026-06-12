@@ -442,41 +442,41 @@
 // entity gun tx_wep_000_b 4.49065399 89.4915085 0.350000024 0.350000024 0 0 0.400000006 0x00000004 1 pickup_gun
 // MAP_BUILDER_STATE_END
 
-#ifndef LEVEL_H
-#define LEVEL_H
+#ifndef YR_LEVEL_H
+#define YR_LEVEL_H
 
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
-#include <raycast.h>
+#include <yari.h>
 #include "assets.h"
 
-#define MAP_COLS 100
-#define MAP_ROWS 100
+#define YR_MAP_COLS 100
+#define YR_MAP_ROWS 100
 
-#define CMSK_ENTITY (1u << 1)
-#define CMSK_DROP (1u << 2)
-#define CMSK_PLAYER (CMSK_ALL & ~CMSK_DROP)
+#define YR_CMSK_ENTITY (1u << 1)
+#define YR_CMSK_DROP (1u << 2)
+#define YR_CMSK_PLAYER (YR_CMSK_ALL & ~YR_CMSK_DROP)
 
-#define LEVEL_FLOOR tx_wal_005
-#define LEVEL_CEIL  tx_wal_000
+#define YR_LEVEL_FLOOR tx_wal_005
+#define YR_LEVEL_CEIL  tx_wal_000
 
-static inline Player init_player_pos(Vector2 pos) {
-    return (Player){
+static inline YrPlayer init_player_pos(Vector2 pos) {
+    return (YrPlayer){
         .pos = pos,
         .dir = (Vector2){0.0f, -1.0f},
         .collision_threshold = 0.15f,
     };
 }
 
-static inline Player init_player(void) {
+static inline YrPlayer init_player(void) {
     return init_player_pos((Vector2){4.541459f, 94.703178f});
 }
 
-void pickup_gun(GameState *state, Entity *self, size_t index);
+void pickup_gun(YrGameState *state, YrEntity *self, size_t index);
 
-static inline Entity create_gun_pos(Vector2 pos, void *data) {
-    return (Entity){
+static inline YrEntity create_gun_pos(Vector2 pos, void *data) {
+    return (YrEntity){
         .pos = pos,
         .texture_id = tx_wep_000_b,
         .vdiv = 0.35f,
@@ -484,22 +484,22 @@ static inline Entity create_gun_pos(Vector2 pos, void *data) {
         .vmove = 0.0f,
         .disabled = false,
         .entity_data = data,
-        .collision_mask = (uint32_t)(CMSK_DROP),
+        .collision_mask = (uint32_t)(YR_CMSK_DROP),
         .collision_threshold = 0.4f,
         .update = pickup_gun,
     };
 }
 
-static inline Entity create_gun(void *data) {
+static inline YrEntity create_gun(void *data) {
     return create_gun_pos((Vector2){4.490654f, 89.491508f}, data);
 }
 
-static inline void level_append_exported_entities(Entities *da) {
-    da_append(da, create_gun(NULL));
+static inline void level_append_exported_entities(YrEntities *da) {
+    yr_da_append(da, create_gun(NULL));
 }
 
 static inline uint8_t *level_get_map(void) {
-    static uint8_t data[MAP_ROWS * MAP_COLS] = {
+    static uint8_t data[YR_MAP_ROWS * YR_MAP_COLS] = {
         tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001,
         tx_wal_001, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, tx_wal_001,
         tx_wal_001, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, tx_wal_001,
@@ -604,4 +604,4 @@ static inline uint8_t *level_get_map(void) {
     return data;
 }
 
-#endif // LEVEL_H
+#endif // YR_LEVEL_H

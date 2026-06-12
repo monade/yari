@@ -1,0 +1,17 @@
+idf_component_register(
+    SRCS
+        "yari.c"
+        "colors.c"
+        "physics.c"
+        "hud.c"
+        "platform/esp32/inputs.c"
+        "platform/esp32/renderer.c"
+    INCLUDE_DIRS
+        "./"
+    REQUIRES
+        esp_lcd
+        driver
+        esp_timer
+        esp_driver_gpio
+        esp_adc
+)

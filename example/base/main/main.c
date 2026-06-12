@@ -1,5 +1,6 @@
-#define RAYCAST_MAIN
-#include <raycast.h>
+#define YARI_MAIN
+#define YARI_NO_PREFIX
+#include <yari.h>
 
 #define SCREEN_W 800
 #define SCREEN_H 600
@@ -17,12 +18,12 @@ static uint8_t map[ROWS][COLS] = {0};
 void init_map() {
     // border
     for (int i = 0; i < ROWS; i++) {
-        map[i][0] = 128;
-        map[i][COLS - 1] = 128;
+        map[i][0] = 131;
+        map[i][COLS - 1] = 131;
     }
     for (int j = 0; j < COLS; j++) {
-        map[0][j] = 128;
-        map[ROWS - 1][j] = 128;
+        map[0][j] = 131;
+        map[ROWS - 1][j] = 131;
     }
 
     // inner blocks
@@ -33,23 +34,25 @@ void init_map() {
 
 void move_player(GameState *state) {
     Player *p = &state->player;
-    if (is_key_down(KEY_A)) {
-        p->dir = rotate(p->dir, COUNTERCLOCKWISE, PLAYER_ROTATION_SPEED);
+    if (is_key_down(YR_KEY_A)) {
+        p->dir = rotate(p->dir, YR_COUNTERCLOCKWISE, PLAYER_ROTATION_SPEED);
     }
-    if (is_key_down(KEY_D)) {
-        p->dir = rotate(p->dir, CLOCKWISE, PLAYER_ROTATION_SPEED);
+    if (is_key_down(YR_KEY_D)) {
+        p->dir = rotate(p->dir, YR_CLOCKWISE, PLAYER_ROTATION_SPEED);
     }
 
     Vector2 target = p->pos;
-    if (is_key_down(KEY_W)) target = move(target, p->dir, FORWARD, PLAYER_SPEED);
-    if (is_key_down(KEY_S)) target = move(target, p->dir, BACK, PLAYER_SPEED);
-    if (is_key_down(KEY_E)) target = move(target, p->dir, RIGHT, PLAYER_SPEED);
-    if (is_key_down(KEY_Q)) target = move(target, p->dir, LEFT, PLAYER_SPEED);
+    if (is_key_down(YR_KEY_W)) target = move(target, p->dir, YR_FORWARD, PLAYER_SPEED);
+    if (is_key_down(YR_KEY_S)) target = move(target, p->dir, YR_BACK, PLAYER_SPEED);
+    if (is_key_down(YR_KEY_E)) target = move(target, p->dir, YR_RIGHT, PLAYER_SPEED);
+    if (is_key_down(YR_KEY_Q)) target = move(target, p->dir, YR_LEFT, PLAYER_SPEED);
 
-    p->pos = slide_collision(state, p->pos, target, NULL, p->collision_threshold, CMSK_ALL);
+    p->pos = slide_collision(state, p->pos, target, NULL, p->collision_threshold, YR_CMSK_ALL);
 }
 
-void init_game(GameState *state) {
+
+// Main game functions
+void yr_init_game(GameState *state) {
   init_map();
   state->screen_width = SCREEN_W;
   state->screen_height = SCREEN_H;
@@ -59,7 +62,7 @@ void init_game(GameState *state) {
   state->player = (Player){.pos = {14.5, 5.5}, .dir = {-0.8, 0.5}, .collision_threshold = 0.15};
 }
 
-void update_game(GameState *state) {
+void yr_update_game(GameState *state) {
     draw_game();
     move_player(state);
 }

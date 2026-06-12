@@ -8,7 +8,7 @@
 da_declare(StringArr, char*);
 
 void generate_rgb_32(String *buffer, const char *name, uint8_t *bitmap, int x, int y, int ch) {
-  str_appendf(buffer, "static const pixel_t %s[] = { \n   ", name);
+  str_appendf(buffer, "static const yr_pixel_t %s[] = { \n   ", name);
   for(int i = 0; i < x * y; i++) {
     uint8_t r = bitmap[i * ch + 0];
     uint8_t g = bitmap[i * ch + 1];
@@ -32,7 +32,7 @@ void generate_rgb_32(String *buffer, const char *name, uint8_t *bitmap, int x, i
 }
 
 void generate_rgb_565(String *buffer, const char *name, uint8_t *bitmap, int x, int y, int ch) {
-  str_appendf(buffer, "static const pixel_t %s[] = { \n    ", name);
+  str_appendf(buffer, "static const yr_pixel_t %s[] = { \n    ", name);
   for(int i = 0; i < x * y; i++) {
     uint8_t r = bitmap[i * ch + 0] * 31 / 255;
     uint8_t g = bitmap[i * ch + 1] * 63 / 255;
@@ -63,8 +63,8 @@ int main(int argc, char **argv) {
     String out = {0};
     StringArr assets = {0};
     str_append(&out, "// File generated automatically by assets_packer.c. DO NOT EDIT. \n");
-    str_append(&out, "#ifndef ASSETS_H\n");
-    str_append(&out, "#define ASSETS_H\n");
+    str_append(&out, "#ifndef YR_ASSETS_H\n");
+    str_append(&out, "#define YR_ASSETS_H\n");
     str_append(&out, "#include <stdint.h>\n");
     str_append(&out, "#include <stddef.h>\n\n");
     str_append(&out, "#include <colors.h>\n\n");
@@ -112,13 +112,13 @@ int main(int argc, char **argv) {
     }
     str_append(&out, "} TextureId;\n\n");
 
-    str_append(&out, "const pixel_t *assets_map[] = {\n");
+    str_append(&out, "const yr_pixel_t *assets_map[] = {\n");
     str_append(&out, "    NULL,\n");
     da_foreach_idx(&assets, i) {
         str_appendf(&out, "    %s,\n", assets.data[i]);
     }
     str_append(&out, "};\n");
-    str_append(&out, "#endif //ASSETS_H");
+    str_append(&out, "#endif //YR_ASSETS_H");
 
     write_entire_file(argv[2], &out);
     da_free(&out);

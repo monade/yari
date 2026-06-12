@@ -822,7 +822,7 @@ static void add_collision_layer(App *app, const char *raw_name) {
     for (char *c = input; *c; c++) *c = (char)toupper((unsigned char)*c);
 
     const char *name_src = input;
-    if (strncmp(name_src, "CMSK_", 5) == 0) name_src += 5;
+    if (strncmp(name_src, "YR_CMSK_", 5) == 0) name_src += 5;
 
     char base[MASK_NAME_SIZE] = {0};
     sanitize_identifier(base, sizeof(base), name_src, "LAYER", true);
@@ -847,7 +847,7 @@ static void add_collision_layer(App *app, const char *raw_name) {
         .shift = shift,
     };
     snprintf(layer.name, sizeof(layer.name), "%s", name);
-    snprintf(layer.symbol, sizeof(layer.symbol), "CMSK_%s", name);
+    snprintf(layer.symbol, sizeof(layer.symbol), "YR_CMSK_%s", name);
     da_append(&app->collision_layers, layer);
 
     app->brush_collision_mask |= layer.value;
@@ -2078,7 +2078,7 @@ static void append_float_literal(String *out, float value) {
 
 static void append_collision_mask_expression(String *out, const App *app, uint32_t mask) {
     if (mask == 0) {
-        str_append(out, "CMSK_NONE");
+        str_append(out, "YR_CMSK_NONE");
         return;
     }
 
@@ -2102,7 +2102,7 @@ static void append_collision_mask_expression(String *out, const App *app, uint32
 }
 
 static void append_player_collision_mask_expression(String *out, const App *app) {
-    str_append(out, "CMSK_ALL");
+    str_append(out, "YR_CMSK_ALL");
     for (size_t i = 0; i < app->collision_layers.length; i++) {
         const CollisionLayer *layer = &app->collision_layers.data[i];
         if ((app->player_collision_mask & layer->value) != 0) continue;
@@ -2249,7 +2249,7 @@ static bool loaded_level_add_collision_layer(LoadedLevel *loaded, const char *ra
     for (char *c = input; *c; c++) *c = (char)toupper((unsigned char)*c);
 
     const char *name_src = input;
-    if (strncmp(name_src, "CMSK_", 5) == 0) name_src += 5;
+    if (strncmp(name_src, "YR_CMSK_", 5) == 0) name_src += 5;
 
     char name[MASK_NAME_SIZE] = {0};
     sanitize_identifier(name, sizeof(name), name_src, "LAYER", true);
@@ -2260,7 +2260,7 @@ static bool loaded_level_add_collision_layer(LoadedLevel *loaded, const char *ra
         .shift = shift,
     };
     snprintf(layer.name, sizeof(layer.name), "%s", name);
-    snprintf(layer.symbol, sizeof(layer.symbol), "CMSK_%s", name);
+    snprintf(layer.symbol, sizeof(layer.symbol), "YR_CMSK_%s", name);
     da_append(&loaded->collision_layers, layer);
     return true;
 }
@@ -2509,31 +2509,31 @@ static bool write_level_header(App *app) {
 
     str_append(&out, "// File generated automatically by map_builder.c. DO NOT EDIT.\n");
     append_map_builder_state(&out, app);
-    str_append(&out, "#ifndef LEVEL_H\n");
-    str_append(&out, "#define LEVEL_H\n\n");
+    str_append(&out, "#ifndef YR_LEVEL_H\n");
+    str_append(&out, "#define YR_LEVEL_H\n\n");
     str_append(&out, "#include <stdint.h>\n");
     str_append(&out, "#include <stddef.h>\n");
     str_append(&out, "#include <stdbool.h>\n");
-    str_append(&out, "#include <raycast.h>\n");
+    str_append(&out, "#include <yari.h>\n");
     str_append(&out, "#include \"assets.h\"\n\n");
-    str_appendf(&out, "#define MAP_COLS %d\n", app->map.cols);
-    str_appendf(&out, "#define MAP_ROWS %d\n\n", app->map.rows);
+    str_appendf(&out, "#define YR_MAP_COLS %d\n", app->map.cols);
+    str_appendf(&out, "#define YR_MAP_ROWS %d\n\n", app->map.rows);
 
     for (size_t i = 0; i < app->collision_layers.length; i++) {
         CollisionLayer *layer = &app->collision_layers.data[i];
         str_appendf(&out, "#define %s (1u << %u)\n", layer->symbol, layer->shift);
     }
-    str_append(&out, "#define CMSK_PLAYER (");
+    str_append(&out, "#define YR_CMSK_PLAYER (");
     append_player_collision_mask_expression(&out, app);
     str_append(&out, ")\n\n");
 
-    str_appendf(&out, "#define LEVEL_FLOOR %s\n", asset_symbol_or_null(app, app->floor_asset));
-    str_appendf(&out, "#define LEVEL_CEIL  %s\n\n", asset_symbol_or_null(app, app->ceil_asset));
+    str_appendf(&out, "#define YR_LEVEL_FLOOR %s\n", asset_symbol_or_null(app, app->floor_asset));
+    str_appendf(&out, "#define YR_LEVEL_CEIL  %s\n\n", asset_symbol_or_null(app, app->ceil_asset));
 
     {
         Vector2 player_dir_val = normalized_player_dir(app);
-        str_append(&out, "static inline Player init_player_pos(Vector2 pos) {\n");
-        str_append(&out, "    return (Player){\n");
+        str_append(&out, "static inline YrPlayer init_player_pos(Vector2 pos) {\n");
+        str_append(&out, "    return (YrPlayer){\n");
         str_append(&out, "        .pos = pos,\n");
         str_append(&out, "        .dir = (Vector2){");
         append_float_literal(&out, player_dir_val.x);
@@ -2547,7 +2547,7 @@ static bool write_level_header(App *app) {
         str_append(&out, "}\n\n");
     }
 
-    str_append(&out, "static inline Player init_player(void) {\n");
+    str_append(&out, "static inline YrPlayer init_player(void) {\n");
     str_append(&out, "    return init_player_pos((Vector2){");
     append_float_literal(&out, app->player_pos.x);
     str_append(&out, ", ");
@@ -2565,7 +2565,7 @@ static bool write_level_header(App *app) {
             if (strcmp(app->entities.data[j].update_fn, ei->update_fn) == 0) { already = true; break; }
         }
         if (!already) {
-            str_appendf(&out, "void %s(GameState *state, Entity *self, size_t index);\n", ei->update_fn);
+            str_appendf(&out, "void %s(YrGameState *state, YrEntity *self, size_t index);\n", ei->update_fn);
         }
     }
     str_append(&out, "\n");
@@ -2578,12 +2578,12 @@ static bool write_level_header(App *app) {
         }
 
         if (entity->update_fn[0] != '\0') {
-            str_appendf(&out, "static inline Entity create_%s_pos(Vector2 pos, void *data) {\n", entity->name);
+            str_appendf(&out, "static inline YrEntity create_%s_pos(Vector2 pos, void *data) {\n", entity->name);
         } else {
-            str_appendf(&out, "static inline Entity create_%s_pos(Vector2 pos, void *data, void (*update)(GameState *state, Entity *self, size_t index)) {\n", entity->name);
+            str_appendf(&out, "static inline YrEntity create_%s_pos(Vector2 pos, void *data, void (*update)(YrGameState *state, YrEntity *self, size_t index)) {\n", entity->name);
 
         }
-        str_append(&out, "    return (Entity){\n");
+        str_append(&out, "    return (YrEntity){\n");
         str_append(&out, "        .pos = pos,\n");
         str_appendf(&out, "        .texture_id = %s,\n", texture_symbol);
         str_append(&out, "        .vdiv = ");
@@ -2608,9 +2608,9 @@ static bool write_level_header(App *app) {
         str_append(&out, "}\n\n");
 
         if (entity->update_fn[0] != '\0') {
-            str_appendf(&out, "static inline Entity create_%s(void *data) {\n", entity->name);
+            str_appendf(&out, "static inline YrEntity create_%s(void *data) {\n", entity->name);
         } else {
-            str_appendf(&out, "static inline Entity create_%s(void *data, void (*update)(GameState *state, Entity *self, size_t index)) {\n", entity->name);
+            str_appendf(&out, "static inline YrEntity create_%s(void *data, void (*update)(YrGameState *state, YrEntity *self, size_t index)) {\n", entity->name);
         }
         str_appendf(&out, "    return create_%s_pos((Vector2){", entity->name);
         append_float_literal(&out, entity->pos.x);
@@ -2624,20 +2624,20 @@ static bool write_level_header(App *app) {
         str_append(&out, "}\n\n");
     }
 
-    str_append(&out, "static inline void level_append_exported_entities(Entities *da) {\n");
+    str_append(&out, "static inline void level_append_exported_entities(YrEntities *da) {\n");
     for (size_t i = 0; i < app->entities.length; i++) {
         PlacedEntity *entity = &app->entities.data[i];
         if (!entity->exported) continue;
         if(entity->update_fn[0] == '\0') {
-            str_appendf(&out, "    da_append(da, create_%s(NULL, NULL));\n", entity->name);
+            str_appendf(&out, "    yr_da_append(da, create_%s(NULL, NULL));\n", entity->name);
         } else {
-            str_appendf(&out, "    da_append(da, create_%s(NULL));\n", entity->name);
+            str_appendf(&out, "    yr_da_append(da, create_%s(NULL));\n", entity->name);
         }
     }
     str_append(&out, "}\n\n");
 
     str_append(&out, "static inline uint8_t *level_get_map(void) {\n");
-    str_append(&out, "    static uint8_t data[MAP_ROWS * MAP_COLS] = {\n");
+    str_append(&out, "    static uint8_t data[YR_MAP_ROWS * YR_MAP_COLS] = {\n");
     for (int y = 0; y < app->map.rows; y++) {
         str_append(&out, "        ");
         for (int x = 0; x < app->map.cols; x++) {
@@ -2655,7 +2655,7 @@ static bool write_level_header(App *app) {
     str_append(&out, "    return data;\n");
     str_append(&out, "}\n\n");
 
-    str_append(&out, "#endif // LEVEL_H\n");
+    str_append(&out, "#endif // YR_LEVEL_H\n");
 
     bool ok = write_entire_file(app->output_path, &out);
     da_free(&out);
@@ -3408,7 +3408,7 @@ static void draw_sidebar(App *app, Rectangle sidebar_bounds, Rectangle map_bound
         if (multi_entity_edit && app->brush_collision_threshold != threshold_before) apply_selected_entities_threshold(app);
         y += 34.0f;
 
-        draw_collision_picker(app, x, &y, w, 80.0f, "CMSK", &app->brush_collision_mask, &app->mask_scroll, true);
+        draw_collision_picker(app, x, &y, w, 80.0f, "YR_CMSK", &app->brush_collision_mask, &app->mask_scroll, true);
         if (multi_entity_edit && app->brush_collision_mask != mask_before) apply_selected_entities_collision_mask(app);
 
         GuiCheckBox((Rectangle){x, y + 2.0f, 18.0f, 18.0f}, "disabled", &app->brush_disabled);

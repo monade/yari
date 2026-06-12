@@ -1,4 +1,4 @@
-# Raycast engine for ESP32 with T-display
+# yari engine for ESP32 with T-display
 This is a simple raycasting engine implemented in C for the ESP32 microcontroller, designed to work with the ST7789 display driver. 
 It also compiles for other platforms with the raylib library.
 

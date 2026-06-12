@@ -1,17 +1,17 @@
-RAYCAST_CFLAGS = -Wall -Wextra -O2
+YARI_CFLAGS = -Wall -Wextra -O2
 RAYLIB_CFLAGS = $(shell pkg-config --cflags raylib)
 RAYLIB_LIBS = $(shell pkg-config --libs raylib) -lm
 RAYLIB_WEB_VERSION ?= 5.5
 RAYLIB_WEB_PATH ?= external/raylib
 RAYLIB_WEB_LIB = $(RAYLIB_WEB_PATH)/src/libraylib.a
-RAYLIB_WEB_RAYCAST_LIB = build/raycast/libraycast_raylib_web.a
+RAYLIB_WEB_YARI_LIB = build/yari/libyari_raylib_web.a
 RAYLIB_WEB_STAMP = build/raylib-web.stamp
 RAYLIB_WEB_OUTPUT = docs/index.html
-RAYLIB_WEB_SHELL = src/raycast/platform/raylib/shell.html
-RAYLIB_WEB_CFLAGS = -Wall -Wextra -O2 -DPLATFORM_WEB -DGRAPHICS_API_OPENGL_ES2 -I./src/raycast -I$(RAYLIB_WEB_PATH)/src
+RAYLIB_WEB_SHELL = src/yari/platform/raylib/shell.html
+RAYLIB_WEB_CFLAGS = -Wall -Wextra -O2 -DPLATFORM_WEB -DGRAPHICS_API_OPENGL_ES2 -I./src/yari -I$(RAYLIB_WEB_PATH)/src
 RAYLIB_WEB_LDFLAGS = -s USE_GLFW=3 -s ASSERTIONS=1 -s INITIAL_MEMORY=33554432 --shell-file $(RAYLIB_WEB_SHELL)
-RAYLIB_WEB_RAYCAST_OBJS = \
-	build/raycast_web.o \
+RAYLIB_WEB_YARI_OBJS = \
+	build/yari_web.o \
 	build/colors_web.o \
 	build/physics_web.o \
 	build/renderer_web.o \
@@ -20,16 +20,16 @@ RAYLIB_WEB_RAYCAST_OBJS = \
 RAYLIB_WEB_DEPS = \
 	example/game/main/assets.h \
 	example/game/main/level.h \
-	src/raycast/colors.h \
-	src/raycast/inputs.h \
-	src/raycast/physics.h \
-	src/raycast/raycast.h \
-	src/raycast/raymath.h \
-	src/raycast/renderer.h \
+	src/yari/colors.h \
+	src/yari/inputs.h \
+	src/yari/physics.h \
+	src/yari/yari.h \
+	src/yari/raymath.h \
+	src/yari/renderer.h \
 	$(RAYLIB_WEB_SHELL)
 
-MAIN_CFLAGS = -Wall -Wextra -O2 -I./src/raycast
-MAIN_LIBS = -Lbuild/raycast -lraycast_raylib
+MAIN_CFLAGS = -Wall -Wextra -O2 -I./src/yari
+MAIN_LIBS = -Lbuild/yari -lyari_raylib
 
 EMCC = emcc
 EMAR = emar
@@ -42,41 +42,41 @@ $(shell mkdir -p build)
 
 all: ray wasm esp32-build
 
-# Lib raycast
+# Lib yari
 
 ## Raylib
-build/raycast.o: src/raycast/raycast.c
-	$(CC) $(RAYCAST_CFLAGS) -c src/raycast/raycast.c -o build/raycast.o
-build/colors.o: src/raycast/colors.c
-	$(CC) $(RAYCAST_CFLAGS) -c src/raycast/colors.c -o build/colors.o
-build/renderer_common.o: src/raycast/renderer_common.c
-	$(CC) $(RAYCAST_CFLAGS) -c src/raycast/renderer_common.c -o build/renderer_common.o
-build/inputs.o: src/raycast/platform/raylib/inputs.c
-	$(CC) $(RAYCAST_CFLAGS) $(RAYLIB_CFLAGS) -c src/raycast/platform/raylib/inputs.c -o build/inputs.o
-build/renderer.o: src/raycast/platform/raylib/renderer.c
-	$(CC) $(RAYCAST_CFLAGS) $(RAYLIB_CFLAGS) -c src/raycast/platform/raylib/renderer.c -o build/renderer.o
-build/physics.o: src/raycast/physics.c
-	$(CC) $(RAYCAST_CFLAGS) -c src/raycast/physics.c -o build/physics.o
-build/raycast/libraycast_raylib.a: build/raycast.o build/colors.o build/renderer_common.o build/inputs.o build/renderer.o build/physics.o
-	@mkdir -p build/raycast
-	ar rcs build/raycast/libraycast_raylib.a build/raycast.o build/colors.o build/renderer_common.o build/inputs.o build/renderer.o build/physics.o
+build/yari.o: src/yari/yari.c
+	$(CC) $(YARI_CFLAGS) -c src/yari/yari.c -o build/yari.o
+build/colors.o: src/yari/colors.c
+	$(CC) $(YARI_CFLAGS) -c src/yari/colors.c -o build/colors.o
+build/renderer_common.o: src/yari/renderer_common.c
+	$(CC) $(YARI_CFLAGS) -c src/yari/renderer_common.c -o build/renderer_common.o
+build/inputs.o: src/yari/platform/raylib/inputs.c
+	$(CC) $(YARI_CFLAGS) $(RAYLIB_CFLAGS) -c src/yari/platform/raylib/inputs.c -o build/inputs.o
+build/renderer.o: src/yari/platform/raylib/renderer.c
+	$(CC) $(YARI_CFLAGS) $(RAYLIB_CFLAGS) -c src/yari/platform/raylib/renderer.c -o build/renderer.o
+build/physics.o: src/yari/physics.c
+	$(CC) $(YARI_CFLAGS) -c src/yari/physics.c -o build/physics.o
+build/yari/libyari_raylib.a: build/yari.o build/colors.o build/renderer_common.o build/inputs.o build/renderer.o build/physics.o
+	@mkdir -p build/yari
+	ar rcs build/yari/libyari_raylib.a build/yari.o build/colors.o build/renderer_common.o build/inputs.o build/renderer.o build/physics.o
 
 ## Raylib web
-build/raycast_web.o: src/raycast/raycast.c src/raycast/raycast.h src/raycast/renderer.h src/raycast/inputs.h src/raycast/colors.h src/raycast/physics.h
-	$(EMCC) $(RAYLIB_WEB_CFLAGS) -c src/raycast/raycast.c -o build/raycast_web.o
-build/colors_web.o: src/raycast/colors.c src/raycast/colors.h
-	$(EMCC) $(RAYLIB_WEB_CFLAGS) -c src/raycast/colors.c -o build/colors_web.o
-build/renderer_common_web.o: src/raycast/renderer_common.c src/raycast/renderer.h
-	$(EMCC) $(RAYLIB_WEB_CFLAGS) -c src/raycast/renderer_common.c -o build/renderer_common_web.o
-build/physics_web.o: src/raycast/physics.c src/raycast/physics.h src/raycast/raycast.h
-	$(EMCC) $(RAYLIB_WEB_CFLAGS) -c src/raycast/physics.c -o build/physics_web.o
-build/renderer_web.o: src/raycast/platform/raylib/renderer.c src/raycast/renderer.h | $(RAYLIB_WEB_PATH)
-	$(EMCC) $(RAYLIB_WEB_CFLAGS) -c src/raycast/platform/raylib/renderer.c -o build/renderer_web.o
-build/inputs_web.o: src/raycast/platform/raylib/inputs.c src/raycast/inputs.h | $(RAYLIB_WEB_PATH)
-	$(EMCC) $(RAYLIB_WEB_CFLAGS) -c src/raycast/platform/raylib/inputs.c -o build/inputs_web.o
-$(RAYLIB_WEB_RAYCAST_LIB): $(RAYLIB_WEB_RAYCAST_OBJS)
-	@mkdir -p build/raycast
-	$(EMAR) rcs $(RAYLIB_WEB_RAYCAST_LIB) $(RAYLIB_WEB_RAYCAST_OBJS)
+build/yari_web.o: src/yari/yari.c src/yari/yari.h src/yari/renderer.h src/yari/inputs.h src/yari/colors.h src/yari/physics.h
+	$(EMCC) $(RAYLIB_WEB_CFLAGS) -c src/yari/yari.c -o build/yari_web.o
+build/colors_web.o: src/yari/colors.c src/yari/colors.h
+	$(EMCC) $(RAYLIB_WEB_CFLAGS) -c src/yari/colors.c -o build/colors_web.o
+build/renderer_common_web.o: src/yari/renderer_common.c src/yari/renderer.h
+	$(EMCC) $(RAYLIB_WEB_CFLAGS) -c src/yari/renderer_common.c -o build/renderer_common_web.o
+build/physics_web.o: src/yari/physics.c src/yari/physics.h src/yari/yari.h
+	$(EMCC) $(RAYLIB_WEB_CFLAGS) -c src/yari/physics.c -o build/physics_web.o
+build/renderer_web.o: src/yari/platform/raylib/renderer.c src/yari/renderer.h | $(RAYLIB_WEB_PATH)
+	$(EMCC) $(RAYLIB_WEB_CFLAGS) -c src/yari/platform/raylib/renderer.c -o build/renderer_web.o
+build/inputs_web.o: src/yari/platform/raylib/inputs.c src/yari/inputs.h | $(RAYLIB_WEB_PATH)
+	$(EMCC) $(RAYLIB_WEB_CFLAGS) -c src/yari/platform/raylib/inputs.c -o build/inputs_web.o
+$(RAYLIB_WEB_YARI_LIB): $(RAYLIB_WEB_YARI_OBJS)
+	@mkdir -p build/yari
+	$(EMAR) rcs $(RAYLIB_WEB_YARI_LIB) $(RAYLIB_WEB_YARI_OBJS)
 
 # Tools
 build/assets_packer: src/tools/assets_packer.c
@@ -84,7 +84,7 @@ build/assets_packer: src/tools/assets_packer.c
 
 example/game/main/assets.h: build/assets_packer assets/*.png
 build/font_baker: src/tools/font_baker.c
-	$(CC) -o build/font_baker src/tools/font_baker.c -I src/raycast
+	$(CC) -o build/font_baker src/tools/font_baker.c -I src/yari
 
 assets: build/assets_packer build/font_baker
 	build/assets_packer assets example/game/main/assets.h
@@ -106,7 +106,7 @@ run-map-builder: map-builder
 ## Raylib examples
 
 ### base example
-build/ray-base: build/raycast/libraycast_raylib.a example/base/main/main.c
+build/ray-base: build/yari/libyari_raylib.a example/base/main/main.c
 	$(CC) $(MAIN_CFLAGS) -o build/ray-base example/base/main/main.c $(MAIN_LIBS) $(RAYLIB_LIBS)
 
 .PHONY: ray-base run-base
@@ -115,7 +115,7 @@ run-base: ray-base
 	build/ray-base
 
 ### game example
-build/ray: assets build/raycast/libraycast_raylib.a example/game/main/main.c
+build/ray: assets build/yari/libyari_raylib.a example/game/main/main.c
 	$(CC) $(MAIN_CFLAGS) -o build/ray example/game/main/main.c $(MAIN_LIBS) $(RAYLIB_LIBS)
 
 .PHONY: ray run
@@ -135,10 +135,10 @@ $(RAYLIB_WEB_STAMP): | $(RAYLIB_WEB_PATH)
 	$(MAKE) -C $(RAYLIB_WEB_PATH)/src PLATFORM=PLATFORM_WEB -B
 	@touch $@
 
-$(RAYLIB_WEB_OUTPUT): $(RAYLIB_WEB_DEPS) $(RAYLIB_WEB_STAMP) $(RAYLIB_WEB_RAYCAST_LIB) example/game/main/main.c
+$(RAYLIB_WEB_OUTPUT): $(RAYLIB_WEB_DEPS) $(RAYLIB_WEB_STAMP) $(RAYLIB_WEB_YARI_LIB) example/game/main/main.c
 	$(EMCC) $(RAYLIB_WEB_CFLAGS) -o $(RAYLIB_WEB_OUTPUT) \
 		example/game/main/main.c \
-		$(RAYLIB_WEB_RAYCAST_LIB) $(RAYLIB_WEB_LIB) $(RAYLIB_WEB_LDFLAGS) -lm
+		$(RAYLIB_WEB_YARI_LIB) $(RAYLIB_WEB_LIB) $(RAYLIB_WEB_LDFLAGS) -lm
 
 .PHONY: wasm run-wasm
 wasm: $(RAYLIB_WEB_OUTPUT)

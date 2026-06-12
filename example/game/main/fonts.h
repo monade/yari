@@ -1,6 +1,6 @@
 // File generated automatically by font_baker.c. DO NOT EDIT.
-#ifndef FONTS_H
-#define FONTS_H
+#ifndef YR_FONTS_H
+#define YR_FONTS_H
 #include <stdint.h>
 #include <renderer.h>
 
@@ -86,7 +86,7 @@ static const uint8_t _press_start_2p_sm_atlas[1250] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00
 };
-static const glyph_t _press_start_2p_sm_glyphs[96] = {
+static const yr_glyph_t _press_start_2p_sm_glyphs[96] = {
     {1,1,1,1,0.000f,0.000f,10.000f},
     {2,1,7,10,2.000f,-10.000f,10.000f},
     {8,1,15,5,1.000f,-10.000f,10.000f},
@@ -184,7 +184,7 @@ static const glyph_t _press_start_2p_sm_glyphs[96] = {
     {1,92,10,97,0.000f,-8.000f,10.000f},
     {11,92,18,95,1.000f,-4.000f,10.000f},
 };
-static const font_t press_start_2p_sm = { _press_start_2p_sm_atlas, _press_start_2p_sm_glyphs, 100, 100 };
+static const yr_font_t press_start_2p_sm = { _press_start_2p_sm_atlas, _press_start_2p_sm_glyphs, 100, 100 };
 
 static const uint8_t _press_start_2p_md_atlas[8125] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -696,7 +696,7 @@ static const uint8_t _press_start_2p_md_atlas[8125] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
-static const glyph_t _press_start_2p_md_glyphs[96] = {
+static const yr_glyph_t _press_start_2p_md_glyphs[96] = {
     {1,1,1,1,0.000f,0.000f,16.000f},
     {2,1,8,15,4.000f,-16.000f,16.000f},
     {9,1,20,7,2.000f,-16.000f,16.000f},
@@ -794,7 +794,7 @@ static const glyph_t _press_start_2p_md_glyphs[96] = {
     {57,78,72,85,0.000f,-13.000f,16.000f},
     {73,78,84,83,2.000f,-7.000f,16.000f},
 };
-static const font_t press_start_2p_md = { _press_start_2p_md_atlas, _press_start_2p_md_glyphs, 260, 250 };
+static const yr_font_t press_start_2p_md = { _press_start_2p_md_atlas, _press_start_2p_md_glyphs, 260, 250 };
 
 static const uint8_t _press_start_2p_lg_atlas[8125] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -1306,7 +1306,7 @@ static const uint8_t _press_start_2p_lg_atlas[8125] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
-static const glyph_t _press_start_2p_lg_glyphs[96] = {
+static const yr_glyph_t _press_start_2p_lg_glyphs[96] = {
     {1,1,1,1,0.000f,0.000f,28.000f},
     {2,1,13,26,7.000f,-28.000f,28.000f},
     {14,1,32,12,3.000f,-28.000f,28.000f},
@@ -1404,7 +1404,7 @@ static const glyph_t _press_start_2p_lg_glyphs[96] = {
     {194,212,219,223,0.000f,-21.000f,28.000f},
     {220,212,238,220,3.000f,-11.000f,28.000f},
 };
-static const font_t press_start_2p_lg = { _press_start_2p_lg_atlas, _press_start_2p_lg_glyphs, 260, 250 };
+static const yr_font_t press_start_2p_lg = { _press_start_2p_lg_atlas, _press_start_2p_lg_glyphs, 260, 250 };
 
 static const uint8_t _press_start_2p_xl_atlas[25000] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -2971,7 +2971,7 @@ static const uint8_t _press_start_2p_xl_atlas[25000] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
-static const glyph_t _press_start_2p_xl_glyphs[96] = {
+static const yr_glyph_t _press_start_2p_xl_glyphs[96] = {
     {1,1,1,1,0.000f,0.000f,48.000f},
     {2,1,20,43,12.000f,-48.000f,48.000f},
     {21,1,51,19,6.000f,-48.000f,48.000f},
@@ -3069,12 +3069,12 @@ static const glyph_t _press_start_2p_xl_glyphs[96] = {
     {236,308,278,326,0.000f,-36.000f,48.000f},
     {279,308,309,320,6.000f,-18.000f,48.000f},
 };
-static const font_t press_start_2p_xl = { _press_start_2p_xl_atlas, _press_start_2p_xl_glyphs, 500, 400 };
+static const yr_font_t press_start_2p_xl = { _press_start_2p_xl_atlas, _press_start_2p_xl_glyphs, 500, 400 };
 
-static const font_t *fonts[4] = {
+static const yr_font_t *fonts[4] = {
     &press_start_2p_sm,
     &press_start_2p_md,
     &press_start_2p_lg,
     &press_start_2p_xl
 };
-#endif // FONTS_H
+#endif // YR_FONTS_H

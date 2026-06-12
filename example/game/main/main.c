@@ -1,11 +1,10 @@
-#define RAYCAST_MAIN
-#include <raycast.h>
+#define YARI_MAIN
+#define YARI_NO_PREFIX
+#include <yari.h>
 #include <stdio.h>
 #include "assets.h"
 #include "fonts.h"
 #include "level.h"
-
-#define ARRAY_LEN(array) (sizeof(array) / sizeof(array[0]))
 
 #ifdef ESP32
 #define TARGET_FPS 30
@@ -18,9 +17,6 @@
 #define SCREEN_H 600
 #define RAY_RES 1
 #endif
-
-#define COLS 100
-#define ROWS 100
 
 #define PLAYER_ROTATION_SPEED 1.25
 #define PLAYER_SPEED 2.5
@@ -41,6 +37,7 @@ typedef struct {
     int gun;
 } PlayerState;
 PlayerState playerState;
+int game_state = 0;
 
 void pickup_gun(GameState *state, Entity *self, size_t index) {
     float pickup_threshold = state->player.collision_threshold + self->collision_threshold;
@@ -52,21 +49,21 @@ void pickup_gun(GameState *state, Entity *self, size_t index) {
 
 void move_player(GameState *state) {
     Player *p = &state->player;
-    if (is_key_down(YARI_KEY_A)) {
-        p->dir = rotate(p->dir, COUNTERCLOCKWISE, PLAYER_ROTATION_SPEED);
+    if (is_key_down(YR_KEY_A)) {
+        p->dir = rotate(p->dir, YR_COUNTERCLOCKWISE, PLAYER_ROTATION_SPEED);
     }
-    if (is_key_down(YARI_KEY_D)) {
-        p->dir = rotate(p->dir, CLOCKWISE, PLAYER_ROTATION_SPEED);
+    if (is_key_down(YR_KEY_D)) {
+        p->dir = rotate(p->dir, YR_CLOCKWISE, PLAYER_ROTATION_SPEED);
     }
 
     Vector2 target = p->pos;
-    if (is_key_down(YARI_KEY_W)) target = move(target, p->dir, FORWARD, PLAYER_SPEED);
-    if (is_key_down(YARI_KEY_S)) target = move(target, p->dir, BACK, PLAYER_SPEED);
-    if (is_key_down(YARI_KEY_E)) target = move(target, p->dir, RIGHT, PLAYER_SPEED);
-    if (is_key_down(YARI_KEY_Q)) target = move(target, p->dir, LEFT, PLAYER_SPEED);
+    if (is_key_down(YR_KEY_W)) target = move(target, p->dir, YR_FORWARD, PLAYER_SPEED);
+    if (is_key_down(YR_KEY_S)) target = move(target, p->dir, YR_BACK, PLAYER_SPEED);
+    if (is_key_down(YR_KEY_E)) target = move(target, p->dir, YR_RIGHT, PLAYER_SPEED);
+    if (is_key_down(YR_KEY_Q)) target = move(target, p->dir, YR_LEFT, PLAYER_SPEED);
 
     CollisionInfo hit;
-    p->pos = slide_collision(state, p->pos, target, &hit, p->collision_threshold, CMSK_PLAYER);
+    p->pos = slide_collision(state, p->pos, target, &hit, p->collision_threshold, YR_CMSK_PLAYER);
 }
 
 void draw_hud(GameState *state) {
@@ -74,7 +71,7 @@ void draw_hud(GameState *state) {
 
     char hp_text[32];
     sprintf(hp_text, "HP: %d", playerState.hp);
-    draw_text(hp_text, 10, 15, fonts[FONT_SM], C_GREEN);
+    draw_text(hp_text, 10, 15, fonts[YR_FONT_SM], YR_GREEN);
 
     if(playerState.gun == 1) {
         const int gun_size = SCREEN_W * GUN_SCALE;
@@ -82,17 +79,19 @@ void draw_hud(GameState *state) {
     }
 }
 
-void init_game(GameState *state) {
+
+// Main game functions
+void yr_init_game(GameState *state) {
   state->screen_width = SCREEN_W;
   state->screen_height = SCREEN_H;
   state->ray_res = RAY_RES;
   state->target_fps = TARGET_FPS;
   state->map = level_get_map();
-  state->map_cols = MAP_COLS;
-  state->map_rows = MAP_ROWS;
+  state->map_cols = YR_MAP_COLS;
+  state->map_rows = YR_MAP_ROWS;
   state->assets_map = assets_map;
-  state->floor_texture = LEVEL_FLOOR;
-  state->ceil_texture = LEVEL_CEIL;
+  state->floor_texture = YR_LEVEL_FLOOR;
+  state->ceil_texture = YR_LEVEL_CEIL;
   state->player = init_player();
 
   playerState.hp = 100;
@@ -101,14 +100,13 @@ void init_game(GameState *state) {
   level_append_exported_entities(&state->entities);
 
   joystick_init(32, 36, axes);
-
 }
 
-int game_state = 0;
-void update_game(GameState *state) {
+void yr_update_game(GameState *state) {
     if(game_state == 0) {
-        draw_text("Press any key to start", 120, 30, fonts[FONT_MD], 0xFFFFFF);
-        if(is_key_pressed(YARI_KEY_W)) {
+        clear_screen(YR_BLACK);
+        draw_text("Press any key to start", 120, 30, fonts[YR_FONT_MD], 0xFFFFFF);
+        if(is_key_pressed(YR_KEY_W)) {
             game_state = 1;
         }
     } else {
