@@ -46,7 +46,7 @@ bool is_key_down(int key) {
         return !gpio_get_level(PIN_KEY_S);
     }
     if (key == KEY_W) {
-        return gpio_get_level(PIN_KEY_W);
+        return !gpio_get_level(PIN_KEY_W);
     }
     return 0;
 }
