@@ -214,6 +214,7 @@ void _init_game() {
     state.target_fps = 60;
     state.ray_res = 2;
     init_game(&state);
+    state.player.dir = Vector2Normalize(state.player.dir);
     state.zbuffer = malloc(sizeof(float) * (state.screen_width / state.ray_res));
     renderer_init(
         state.screen_width,

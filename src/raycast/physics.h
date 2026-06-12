@@ -31,7 +31,9 @@ typedef struct {
 
 CollisionInfo check_collision(GameState *state, Vector2 next_pos, float threshold, uint32_t collision_mask);
 
-Vector2 slide_player(GameState *state, Vector2 from, Vector2 to, CollisionInfo *hit, uint32_t collision_mask);
+CollisionInfo check_ray_collision(GameState *state, Vector2 origin, Vector2 dir, float threshold, uint32_t collision_mask);
+
+Vector2 slide_collision(GameState *state, Vector2 from, Vector2 to, CollisionInfo *hit, float threshold, uint32_t collision_mask);
 
 Vector2 rotate(Vector2 vector, enum RotationDirection direction, float rotation_speed);
 

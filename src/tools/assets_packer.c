@@ -13,7 +13,10 @@ void generate_rgb_32(String *buffer, const char *name, uint8_t *bitmap, int x, i
     uint8_t r = bitmap[i * ch + 0];
     uint8_t g = bitmap[i * ch + 1];
     uint8_t b = bitmap[i * ch + 2];
+    uint8_t a = ch >= 4 ? bitmap[i * ch + 3] : 255;
     uint32_t pixel = (r << 24) | (g << 16) | (b << 8) | 0xFF;
+    if (a == 0) pixel = 0xFF;
+    else if (pixel == 0xFF && ch >= 4) pixel = 0x1FF;
     str_appendf(buffer, "0x%08X", pixel);
     if (i % 8 == 7) {
       if (i != (x * y) - 1) {
@@ -34,7 +37,10 @@ void generate_rgb_565(String *buffer, const char *name, uint8_t *bitmap, int x, 
     uint8_t r = bitmap[i * ch + 0] * 31 / 255;
     uint8_t g = bitmap[i * ch + 1] * 63 / 255;
     uint8_t b = bitmap[i * ch + 2] * 31 / 255;
+    uint8_t a = ch >= 4 ? bitmap[i * ch + 3] : 255;
     uint16_t pixel = (r << 11) | (g << 5) | b;
+    if (a == 0) pixel = 0;
+    else if (pixel == 0 && ch >= 4) pixel = 1 << 5;
     str_appendf(buffer, "0x%04X", pixel);
     if (i % 8 == 7) {
       if (i != (x * y) - 1) {

@@ -18,7 +18,7 @@
 
 #define COLS 100
 #define ROWS 100
-
+#define CMSK_ENTITY 1
 
 #define PLAYER_ROTATION_SPEED 1.25
 #define PLAYER_SPEED 2.5
@@ -129,7 +129,7 @@ void move_player(GameState *state) {
     if (is_key_down(KEY_Q)) target = move(target, p->dir, LEFT, PLAYER_SPEED);
 
     CollisionInfo hit;
-    p->pos = slide_player(state, p->pos, target, &hit, CMSK_PLAYER);
+    p->pos = slide_collision(state, p->pos, target, &hit, p->collision_threshold, CMSK_PLAYER);
 }
 
 #ifdef DEBUG
@@ -144,7 +144,7 @@ void print_fps() {
 void update_game(GameState *state) {
     draw_game();
     move_player(state);
-    if (is_key_down(KEY_W)) {
+    if (is_key_down(KEY_SPACE)) {
         spawn_test_entity(state);
     }
 #ifdef DEBUG
