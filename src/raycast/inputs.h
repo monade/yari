@@ -96,6 +96,11 @@ typedef enum {
     KEY_RIGHT_SUPER     = 347,      // Key: Super right
 } KeyboardKey;
 
+typedef enum {
+    X_AXIS = 0,
+    Y_AXIS = 1,
+} JoystickAxis;
+
 void inputs_init();
 
 bool is_key_down(int key);

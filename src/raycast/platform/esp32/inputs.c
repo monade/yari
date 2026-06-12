@@ -35,6 +35,10 @@ void inputs_init() {
     gpio_set_pull_mode(PIN_KEY_W, GPIO_PULLUP_ONLY);
 }
 
+void joystick_init(int joystick_pin) {
+  // init joystick pin on esp32...
+}
+
 bool is_key_down(int key) {
     if (key == KEY_A) {
         return !gpio_get_level(PIN_KEY_A);
@@ -62,4 +66,8 @@ bool is_key_pressed(int key) {
   gpios_states[key] = current;
 
   return current && !prev;
+}
+
+float joystick_get_axis(int joystick_pin) {
+  
 }

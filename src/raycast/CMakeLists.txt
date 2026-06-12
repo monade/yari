@@ -12,4 +12,5 @@ idf_component_register(
         driver
         esp_timer
         esp_driver_gpio
+        esp_adc
 )
