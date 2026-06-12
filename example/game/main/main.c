@@ -25,6 +25,8 @@
 #define PLAYER_ROTATION_SPEED 1.25
 #define PLAYER_SPEED 2.5
 
+#define GUN_SCALE 0.35f
+
 
 JoystickConfig axes[2];
 
@@ -41,7 +43,11 @@ typedef struct {
 PlayerState playerState;
 
 void pickup_gun(GameState *state, Entity *self, size_t index) {
-
+    float pickup_threshold = state->player.collision_threshold + self->collision_threshold;
+    if (self->dist < pickup_threshold) {
+        playerState.gun = 1;
+        da_remove_unordered(&state->entities, index);
+    }
 }
 
 void move_player(GameState *state) {
@@ -63,6 +69,19 @@ void move_player(GameState *state) {
     p->pos = slide_collision(state, p->pos, target, &hit, p->collision_threshold, CMSK_PLAYER);
 }
 
+void draw_hud(GameState *state) {
+    (void)state;
+
+    char hp_text[32];
+    sprintf(hp_text, "HP: %d", playerState.hp);
+    draw_text(hp_text, 10, 15, fonts[FONT_SM], C_GREEN);
+
+    if(playerState.gun == 1) {
+        const int gun_size = SCREEN_W * GUN_SCALE;
+        draw_asset(assets_map[tx_wep_gun0], (state->screen_width - gun_size) /2 , state->screen_height - gun_size, gun_size, gun_size, 128);
+    }
+}
+
 void init_game(GameState *state) {
   state->screen_width = SCREEN_W;
   state->screen_height = SCREEN_H;
@@ -76,12 +95,13 @@ void init_game(GameState *state) {
   state->ceil_texture = LEVEL_CEIL;
   state->player = init_player();
 
+  playerState.hp = 100;
+  playerState.gun = 0;
+
   level_append_exported_entities(&state->entities);
 
   joystick_init(32, 36, axes);
 
-  playerState.hp = 100;
-  playerState.gun = 0;
 }
 
 int game_state = 0;
@@ -93,6 +113,7 @@ void update_game(GameState *state) {
         }
     } else {
         draw_game();
+        draw_hud(state);
         move_player(state);
     }
 }

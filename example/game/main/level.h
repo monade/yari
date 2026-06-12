@@ -4,7 +4,7 @@
 // size 100 100
 // surface floor tx_wal_005
 // surface ceil tx_wal_000
-// player 4.50020981 92.90271 0 -1 0.150000006 0xFFFFFFFF
+// player 4.54145908 94.7031784 0 -1 0.150000006 0xFFFFFFFB
 // layer ENTITY 1
 // layer DROP 2
 // update_fn pickup_gun
@@ -439,7 +439,7 @@
 // wall 97 99 tx_wal_001
 // wall 98 99 tx_wal_001
 // wall 99 99 tx_wal_001
-// entity gun tx_wep_gun1 4.55451107 91.4566269 0 0 0 0 0.400000006 0x00000004 1 pickup_gun
+// entity gun tx_wep_000_b 4.49065399 89.4915085 0.350000024 0.350000024 0 0 0.400000006 0x00000004 1 pickup_gun
 // MAP_BUILDER_STATE_END
 
 #ifndef LEVEL_H
@@ -456,7 +456,7 @@
 
 #define CMSK_ENTITY (1u << 1)
 #define CMSK_DROP (1u << 2)
-#define CMSK_PLAYER (CMSK_ALL)
+#define CMSK_PLAYER (CMSK_ALL & ~CMSK_DROP)
 
 #define LEVEL_FLOOR tx_wal_005
 #define LEVEL_CEIL  tx_wal_000
@@ -470,7 +470,7 @@ static inline Player init_player_pos(Vector2 pos) {
 }
 
 static inline Player init_player(void) {
-    return init_player_pos((Vector2){4.50021f, 92.90271f});
+    return init_player_pos((Vector2){4.541459f, 94.703178f});
 }
 
 void pickup_gun(GameState *state, Entity *self, size_t index);
@@ -478,9 +478,9 @@ void pickup_gun(GameState *state, Entity *self, size_t index);
 static inline Entity create_gun_pos(Vector2 pos, void *data) {
     return (Entity){
         .pos = pos,
-        .texture_id = tx_wep_gun1,
-        .vdiv = 0.0f,
-        .hdiv = 0.0f,
+        .texture_id = tx_wep_000_b,
+        .vdiv = 0.35f,
+        .hdiv = 0.35f,
         .vmove = 0.0f,
         .disabled = false,
         .entity_data = data,
@@ -491,7 +491,7 @@ static inline Entity create_gun_pos(Vector2 pos, void *data) {
 }
 
 static inline Entity create_gun(void *data) {
-    return create_gun_pos((Vector2){4.554511f, 91.456627f}, data);
+    return create_gun_pos((Vector2){4.490654f, 89.491508f}, data);
 }
 
 static inline void level_append_exported_entities(Entities *da) {
