@@ -94,20 +94,19 @@ void move_player(GameState *state) {
     Player *p = &state->player;
     float xmov =  joystick_get_axis(axes[0]);
     float ymov =  joystick_get_axis(axes[1]);
-    printf("Joystick axes: x=%.2f y=%.2f\n", xmov, ymov);
-    if ( xmov < -0.5) {
+    if (is_key_down(YARI_KEY_A) || xmov < -0.5) {
       p->dir = rotate(p->dir, COUNTERCLOCKWISE, PLAYER_ROTATION_SPEED);
     }
-    if ( xmov > 0.5) {
+    if (is_key_down(YARI_KEY_D) || xmov > 0.5) {
       p->dir = rotate(p->dir, CLOCKWISE, PLAYER_ROTATION_SPEED);
     }
-    if ( ymov < -0.5) {
+    if (is_key_down(YARI_KEY_W) || ymov < -0.5) {
       Vector2 next_pos = move(p->pos, p->dir, FORWARD, PLAYER_SPEED);
       if (!check_player_collision(state, next_pos)) {
           p->pos = next_pos;
         }
     }
-    if ( ymov > 0.5) {
+    if (is_key_down(YARI_KEY_S) || ymov > 0.5) {
       Vector2 next_pos = move(p->pos, p->dir, BACK, PLAYER_SPEED);
       if (!check_player_collision(state, next_pos)) {
           p->pos = next_pos;
