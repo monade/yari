@@ -15,6 +15,7 @@ RAYLIB_WEB_RAYCAST_OBJS = \
 	build/colors_web.o \
 	build/physics_web.o \
 	build/renderer_web.o \
+	build/renderer_common_web.o \
 	build/inputs_web.o
 RAYLIB_WEB_DEPS = \
 	example/game/main/assets.h \
@@ -35,7 +36,10 @@ EMAR = emar
 
 ESP32_HOME = ~/esp/v5.5.*/esp-idf
 
+$(shell mkdir -p build)
+
 .PHONY: all
+
 all: ray wasm esp32-build
 
 # Lib raycast
@@ -45,21 +49,25 @@ build/raycast.o: src/raycast/raycast.c
 	$(CC) $(RAYCAST_CFLAGS) -c src/raycast/raycast.c -o build/raycast.o
 build/colors.o: src/raycast/colors.c
 	$(CC) $(RAYCAST_CFLAGS) -c src/raycast/colors.c -o build/colors.o
+build/renderer_common.o: src/raycast/renderer_common.c
+	$(CC) $(RAYCAST_CFLAGS) -c src/raycast/renderer_common.c -o build/renderer_common.o
 build/inputs.o: src/raycast/platform/raylib/inputs.c
 	$(CC) $(RAYCAST_CFLAGS) $(RAYLIB_CFLAGS) -c src/raycast/platform/raylib/inputs.c -o build/inputs.o
 build/renderer.o: src/raycast/platform/raylib/renderer.c
 	$(CC) $(RAYCAST_CFLAGS) $(RAYLIB_CFLAGS) -c src/raycast/platform/raylib/renderer.c -o build/renderer.o
 build/physics.o: src/raycast/physics.c
 	$(CC) $(RAYCAST_CFLAGS) -c src/raycast/physics.c -o build/physics.o
-build/raycast/libraycast_raylib.a: build/raycast.o build/colors.o build/inputs.o build/renderer.o build/physics.o
+build/raycast/libraycast_raylib.a: build/raycast.o build/colors.o build/renderer_common.o build/inputs.o build/renderer.o build/physics.o
 	@mkdir -p build/raycast
-	ar rcs build/raycast/libraycast_raylib.a build/raycast.o build/colors.o build/inputs.o build/renderer.o build/physics.o
+	ar rcs build/raycast/libraycast_raylib.a build/raycast.o build/colors.o build/renderer_common.o build/inputs.o build/renderer.o build/physics.o
 
 ## Raylib web
 build/raycast_web.o: src/raycast/raycast.c src/raycast/raycast.h src/raycast/renderer.h src/raycast/inputs.h src/raycast/colors.h src/raycast/physics.h
 	$(EMCC) $(RAYLIB_WEB_CFLAGS) -c src/raycast/raycast.c -o build/raycast_web.o
 build/colors_web.o: src/raycast/colors.c src/raycast/colors.h
 	$(EMCC) $(RAYLIB_WEB_CFLAGS) -c src/raycast/colors.c -o build/colors_web.o
+build/renderer_common_web.o: src/raycast/renderer_common.c src/raycast/renderer.h
+	$(EMCC) $(RAYLIB_WEB_CFLAGS) -c src/raycast/renderer_common.c -o build/renderer_common_web.o
 build/physics_web.o: src/raycast/physics.c src/raycast/physics.h src/raycast/raycast.h
 	$(EMCC) $(RAYLIB_WEB_CFLAGS) -c src/raycast/physics.c -o build/physics_web.o
 build/renderer_web.o: src/raycast/platform/raylib/renderer.c src/raycast/renderer.h | $(RAYLIB_WEB_PATH)
@@ -75,7 +83,12 @@ build/assets_packer: src/tools/assets_packer.c
 	$(CC) -o build/assets_packer src/tools/assets_packer.c -lm
 
 example/game/main/assets.h: build/assets_packer assets/*.png
+build/font_baker: src/tools/font_baker.c
+	$(CC) -o build/font_baker src/tools/font_baker.c -I src/raycast
+
+assets: build/assets_packer build/font_baker
 	build/assets_packer assets example/game/main/assets.h
+	build/font_baker assets/font example/game/main/fonts.h
 
 build/map_builder: src/tools/map_builder.c src/tools/raygui.h
 	$(CC) -Wall -Wextra -O2 $(RAYLIB_CFLAGS) -I./src/tools -o build/map_builder src/tools/map_builder.c $(RAYLIB_LIBS)

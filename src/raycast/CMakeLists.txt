@@ -3,6 +3,7 @@ idf_component_register(
         "raycast.c"
         "colors.c"
         "physics.c"
+        "hud.c"
         "platform/esp32/inputs.c"
         "platform/esp32/renderer.c"
     INCLUDE_DIRS

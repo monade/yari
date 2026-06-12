@@ -1,6 +1,8 @@
 #define RAYCAST_MAIN
 #include <raycast.h>
+#include <stdio.h>
 #include "assets.h"
+#include "fonts.h"
 
 #define ARRAY_LEN(array) (sizeof(array) / sizeof(array[0]))
 
@@ -41,11 +43,19 @@ void test_sprite_script(GameState *state, Entity *self, size_t index) {
     else self->texture_id = tx_greenlight;
 }
 
-void test_pop_on_touch_script(GameState *state, Entity *self, size_t index) {
-    if(self->dist < state->player.collision_threshold + self->collision_threshold) {
-        da_remove_unordered(&state->entities, index);
-    }
-}
+typedef struct {
+    int score;
+} ExampleGameAttributes;
+
+static ExampleGameAttributes attrs = {0};
+
+Entity sprites[] = {
+    {.pos = {6.5, 4.5}, .texture_id = tx_pillar, .vmove=-0.7, .collision_threshold = 0.25, .collision_mask = 1},
+    {.pos = {5.5, 5.5}, .texture_id = tx_greenlight, .update = test_sprite_script, .collision_threshold = 0.25, .collision_mask = 1},
+    {.pos = {2.5, 3.5}, .texture_id = tx_barrel, .collision_threshold = 0.25, .collision_mask = 1},
+    {.pos = {3.5, 3.5}, .texture_id = tx_barrel, .vmove=0.25, .collision_threshold = 0.25, .collision_mask = 1},
+};
+#define NUM_SPRITES ARRAY_LEN(sprites)
 
 void test_projectile_script(GameState *state, Entity *self, size_t index) {
     self->pos = move(self->pos, state->player.dir, FORWARD, PLAYER_SPEED * 2);
@@ -104,12 +114,13 @@ void init_game(GameState *state) {
   state->map_rows = ROWS;
   da_append(&state->entities, ((Entity){.pos = {6.5, 4.5}, .texture_id = tx_pillar, .vmove=-0.7, .collision_threshold = 0.25, .collision_mask = CMSK_ENTITY}));
   da_append(&state->entities, ((Entity){.pos = {5.5, 5.5}, .texture_id = tx_greenlight, .update = test_sprite_script, .collision_threshold = 0.25, .collision_mask = CMSK_ENTITY}));
-  da_append(&state->entities, ((Entity){.pos = {2.5, 3.5}, .texture_id = tx_barrel, .update = test_pop_on_touch_script, .collision_threshold = 0.25, .collision_mask = CMSK_OTHER}));
+//   da_append(&state->entities, ((Entity){.pos = {2.5, 3.5}, .texture_id = tx_barrel, .update = test_pop_on_touch_script, .collision_threshold = 0.25, .collision_mask = CMSK_OTHER}));
   da_append(&state->entities, ((Entity){.pos = {3.5, 3.5}, .texture_id = tx_barrel, .vmove=0.25, .collision_threshold = 0.25, .collision_mask = CMSK_ENTITY}));
   state->player = (Player){.pos = {10.5, 5.5}, .dir = {0, 1}, .collision_threshold = 0.15};
   state->assets_map = assets_map;
   state->floor_texture = tx_greystone;
   state->ceil_texture = tx_greystone;
+  state->state_attributes = &attrs;
 }
 
 
@@ -132,21 +143,41 @@ void move_player(GameState *state) {
     p->pos = slide_collision(state, p->pos, target, &hit, p->collision_threshold, CMSK_PLAYER);
 }
 
-#ifdef DEBUG
-#include <stdio.h>
 void print_fps() {
-    char buffer[32];
-    snprintf(buffer, sizeof(buffer), "FPS: %.2f", get_fps());
-    draw_text(buffer, 10, 10, 20, C_WHITE);
+    char buffer[48];
+    snprintf(buffer, sizeof(buffer), "FPS:%02d dt:%dms",
+             (int)get_fps(), (int)(get_frame_time() * 1000));
+    draw_text(buffer, SCREEN_W - 130, SCREEN_H - 15, *fonts[FONT_SM], C_RED);
 }
-#endif
+
+void draw_hud(const GameState* state) {
+    const ExampleGameAttributes* a = state->state_attributes;
+    char buffer[12];
+    // SCORE
+    draw_text("SCORE", 5, 17, *fonts[FONT_SM], C_WHITE);
+    snprintf(buffer, sizeof(buffer), "%05d", a->score);
+    draw_text(buffer, 5, 27, *fonts[FONT_SM], C_WHITE);
+    // TIME
+    const int time = (int)state->game_time / 1000;
+    draw_text("TIME", SCREEN_W - 45, 17, *fonts[FONT_SM], C_WHITE);
+    snprintf(buffer, sizeof(buffer), "%04d", time);
+    draw_text(buffer, SCREEN_W - 45, 27, *fonts[FONT_SM], C_WHITE);
+    // SPRITE
+    for (int i = 0; i < 3; i++) {
+        draw_asset((pixel_t*)assets_map[tx_barrel], 70 + i * 35, -17, 45, 45, 64);
+    }
+}
+
+void update_state(GameState* state) {
+    ExampleGameAttributes* a = state->state_attributes;
+    a->score = (int)(state->game_time / 100);
+}
 
 void update_game(GameState *state) {
     draw_game();
     move_player(state);
-    if (is_key_down(KEY_SPACE)) {
-        spawn_test_entity(state);
-    }
+    draw_hud(state);
+    update_state(state);
 #ifdef DEBUG
     print_fps();
 #endif

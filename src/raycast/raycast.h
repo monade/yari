@@ -56,6 +56,8 @@ typedef struct GameState {
     const pixel_t **assets_map;
     size_t floor_texture;
     size_t ceil_texture;
+    uint32_t game_time; // ms since start of game
+    void* state_attributes; // game-defined state
 } GameState;
 
 
