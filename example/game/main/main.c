@@ -57,30 +57,7 @@ Entity sprites[] = {
 };
 #define NUM_SPRITES ARRAY_LEN(sprites)
 
-void test_projectile_script(GameState *state, Entity *self, size_t index) {
-    self->pos = move(self->pos, state->player.dir, FORWARD, PLAYER_SPEED * 2);
-    if(self->dist > MAX_RENDER_DIST) {
-        da_remove_unordered(&state->entities, index);
-        return;
-    }
-    CollisionInfo hit = check_collision(state, self->pos, self->collision_threshold, CMSK_ALL & ~CMSK_PROJECTILE & ~CMSK_OTHER);
-    if (hit.type != COLLISION_NONE) {
-        da_remove_unordered(&state->entities, index);
-        if (hit.type == COLLISION_ENTITY) {
-            hit.entity->disabled = true;
-        } else if (hit.type == COLLISION_WALL) {
-            int cell_x = hit.cell_x;
-            int cell_y = hit.cell_y;
-            if (cell_x >= 0 && cell_x < state->map_cols && cell_y >= 0 && cell_y < state->map_rows && state->map[cell_y * state->map_cols + cell_x] > 128) {
-                state->map[cell_y * state->map_cols + cell_x] = 0;
-            }
-        }
-    }
-}
-
-void spawn_test_entity(GameState *state) {
-    da_append(&state->entities, ((Entity){.pos = {state->player.pos.x + state->player.dir.x, state->player.pos.y + state->player.dir.y}, .texture_id = tx_barrel, .update = test_projectile_script, .collision_threshold = 0.25, .collision_mask = CMSK_PROJECTILE, .hdiv= 0.7, .vdiv = 0.7}));
-}
+JoystickConfig axes[2];
 
 void init_map() {
     for (int i = 0; i < ROWS; i++) {
@@ -120,51 +97,44 @@ void init_game(GameState *state) {
   state->assets_map = assets_map;
   state->floor_texture = tx_greystone;
   state->ceil_texture = tx_greystone;
-  state->state_attributes = &attrs;
+
+  joystick_init(32, 36, axes);
 }
 
 
 void move_player(GameState *state) {
     Player *p = &state->player;
-    if (is_key_down(KEY_A)) {
-        p->dir = rotate(p->dir, COUNTERCLOCKWISE, PLAYER_ROTATION_SPEED);
+    float xmov =  joystick_get_axis(axes[0]);
+    float ymov =  joystick_get_axis(axes[1]);
+    if (is_key_down(YARI_KEY_A) || xmov < -0.5) {
+      p->dir = rotate(p->dir, COUNTERCLOCKWISE, PLAYER_ROTATION_SPEED);
     }
-    if (is_key_down(KEY_D)) {
-        p->dir = rotate(p->dir, CLOCKWISE, PLAYER_ROTATION_SPEED);
+    if (is_key_down(YARI_KEY_D) || xmov > 0.5) {
+      p->dir = rotate(p->dir, CLOCKWISE, PLAYER_ROTATION_SPEED);
     }
-
-    Vector2 target = p->pos;
-    if (is_key_down(KEY_W)) target = move(target, p->dir, FORWARD, PLAYER_SPEED);
-    if (is_key_down(KEY_S)) target = move(target, p->dir, BACK, PLAYER_SPEED);
-    if (is_key_down(KEY_E)) target = move(target, p->dir, RIGHT, PLAYER_SPEED);
-    if (is_key_down(KEY_Q)) target = move(target, p->dir, LEFT, PLAYER_SPEED);
-
-    CollisionInfo hit;
-    p->pos = slide_collision(state, p->pos, target, &hit, p->collision_threshold, CMSK_PLAYER);
-}
-
-void print_fps() {
-    char buffer[48];
-    snprintf(buffer, sizeof(buffer), "FPS:%02d dt:%dms",
-             (int)get_fps(), (int)(get_frame_time() * 1000));
-    draw_text(buffer, SCREEN_W - 130, SCREEN_H - 15, *fonts[FONT_SM], C_RED);
-}
-
-void draw_hud(const GameState* state) {
-    const ExampleGameAttributes* a = state->state_attributes;
-    char buffer[12];
-    // SCORE
-    draw_text("SCORE", 5, 17, *fonts[FONT_SM], C_WHITE);
-    snprintf(buffer, sizeof(buffer), "%05d", a->score);
-    draw_text(buffer, 5, 27, *fonts[FONT_SM], C_WHITE);
-    // TIME
-    const int time = (int)state->game_time / 1000;
-    draw_text("TIME", SCREEN_W - 45, 17, *fonts[FONT_SM], C_WHITE);
-    snprintf(buffer, sizeof(buffer), "%04d", time);
-    draw_text(buffer, SCREEN_W - 45, 27, *fonts[FONT_SM], C_WHITE);
-    // SPRITE
-    for (int i = 0; i < 3; i++) {
-        draw_asset((pixel_t*)assets_map[tx_barrel], 70 + i * 35, -17, 45, 45, 64);
+    if (is_key_down(YARI_KEY_W) || ymov < -0.5) {
+      Vector2 next_pos = move(p->pos, p->dir, FORWARD, PLAYER_SPEED);
+      if (!check_player_collision(state, next_pos)) {
+          p->pos = next_pos;
+        }
+    }
+    if (is_key_down(YARI_KEY_S) || ymov > 0.5) {
+      Vector2 next_pos = move(p->pos, p->dir, BACK, PLAYER_SPEED);
+      if (!check_player_collision(state, next_pos)) {
+          p->pos = next_pos;
+        }
+    }
+    if (is_key_down(YARI_KEY_E)) {
+        Vector2 next_pos = move(p->pos, p->dir, RIGHT, PLAYER_SPEED);
+        if (!check_player_collision(state, next_pos)) {
+            p->pos = next_pos;
+        }
+    }
+    if (is_key_down(YARI_KEY_Q)) {
+        Vector2 next_pos = move(p->pos, p->dir, LEFT, PLAYER_SPEED);
+        if (!check_player_collision(state, next_pos)) {
+            p->pos = next_pos;
+        }
     }
 }
 
