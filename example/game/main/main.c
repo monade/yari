@@ -34,24 +34,15 @@ void update_mob(GameState *state, Entity *self, size_t index) {
     self->pos.x += 0.01f;
 }
 
-void init_game(GameState *state) {
-  state->screen_width = SCREEN_W;
-  state->screen_height = SCREEN_H;
-  state->ray_res = RAY_RES;
-  state->target_fps = TARGET_FPS;
-  state->map = level_get_map();
-  state->map_cols = MAP_COLS;
-  state->map_rows = MAP_ROWS;
-  state->assets_map = assets_map;
-  state->floor_texture = LEVEL_FLOOR;
-  state->ceil_texture = LEVEL_CEIL;
-  state->player = init_player();
+typedef struct {
+    int hp;
+    int gun;
+} PlayerState;
+PlayerState playerState;
 
-  level_append_exported_entities(&state->entities);
+void pickup_gun(GameState *state, Entity *self, size_t index) {
 
-  joystick_init(32, 36, axes);
 }
-
 
 void move_player(GameState *state) {
     Player *p = &state->player;
@@ -72,8 +63,28 @@ void move_player(GameState *state) {
     p->pos = slide_collision(state, p->pos, target, &hit, p->collision_threshold, CMSK_PLAYER);
 }
 
-int game_state = 0;
+void init_game(GameState *state) {
+  state->screen_width = SCREEN_W;
+  state->screen_height = SCREEN_H;
+  state->ray_res = RAY_RES;
+  state->target_fps = TARGET_FPS;
+  state->map = level_get_map();
+  state->map_cols = MAP_COLS;
+  state->map_rows = MAP_ROWS;
+  state->assets_map = assets_map;
+  state->floor_texture = LEVEL_FLOOR;
+  state->ceil_texture = LEVEL_CEIL;
+  state->player = init_player();
 
+  level_append_exported_entities(&state->entities);
+
+  joystick_init(32, 36, axes);
+
+  playerState.hp = 100;
+  playerState.gun = 0;
+}
+
+int game_state = 0;
 void update_game(GameState *state) {
     if(game_state == 0) {
         draw_text("Press any key to start", 120, 30, fonts[FONT_MD], 0xFFFFFF);
@@ -83,9 +94,5 @@ void update_game(GameState *state) {
     } else {
         draw_game();
         move_player(state);
-        if(is_key_pressed(YARI_KEY_SPACE)) {
-            Entity e = create_et_pos((Vector2){39.274796f, 52.666969f}, NULL, update_mob);
-            da_append(&state->entities, e);
-        }
     }
 }
