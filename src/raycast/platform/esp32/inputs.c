@@ -19,6 +19,7 @@
 #define PIN_KEY_W 37
 #endif
 
+bool gpios_states[350] = {0};
 
 void inputs_init() {
     gpio_set_direction(PIN_KEY_A, GPIO_MODE_INPUT);
@@ -33,7 +34,6 @@ void inputs_init() {
     gpio_set_direction(PIN_KEY_W, GPIO_MODE_INPUT);
     gpio_set_pull_mode(PIN_KEY_W, GPIO_PULLUP_ONLY);
 }
-
 
 bool is_key_down(int key) {
     if (key == KEY_A) {
@@ -53,4 +53,13 @@ bool is_key_down(int key) {
 
 bool is_key_up(int key) {
     return !is_key_down(key);
+}
+
+bool is_key_pressed(int key) {
+  bool prev = gpios_states[key];
+  bool current = is_key_down(key);
+
+  gpios_states[key] = current;
+
+  return current && !prev;
 }
