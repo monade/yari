@@ -40,6 +40,9 @@
 #define SPAWN_INTERVAL_MS     2000
 #define MIN_SPAWN_DIST        5.0f
 #define MAX_SPAWN_DIST        14.0f
+#define ENEMY_STUCK_MS        3000   // no progress toward the player -> give up & despawn
+#define ENEMY_DESPAWN_DIST    18.0f  // wandered too far from the player -> despawn
+#define ENEMY_PROGRESS_EPS    0.25f  // min distance gain that counts as progress
 #define FIRE_KEY              YARI_KEY_SPACE
 
 #define HIT_FLASH_MS          120
@@ -59,6 +62,8 @@ typedef struct {
     uint32_t hit_flash_until;
     bool dead;
     uint32_t death_time;
+    float best_dist;         // closest the enemy has ever gotten to the player
+    uint32_t progress_time;  // last game_time at which best_dist improved
 } EnemyData;
 
 static uint32_t muzzle_flash_until = 0;
@@ -98,6 +103,20 @@ void update_enemy(GameState *state, Entity *self, size_t index) {
 
     EnemyData *ed = (EnemyData *)self->entity_data;
     self->texture_id = (state->game_time < ed->hit_flash_until) ? ENEMY_HIT_TEX : ENEMY_TEX;
+
+    // Track progress toward the player; give up (despawn) if stuck against a
+    // wall for too long or if the player got too far away. This keeps enemies
+    // from piling up behind walls they can only slide along, never go around.
+    if (self->dist + ENEMY_PROGRESS_EPS < ed->best_dist) {
+        ed->best_dist = self->dist;
+        ed->progress_time = state->game_time;
+    }
+    if (self->dist > ENEMY_DESPAWN_DIST ||
+        state->game_time - ed->progress_time > ENEMY_STUCK_MS) {
+        free(self->entity_data);
+        da_remove_unordered(&state->entities, index);
+        return;
+    }
 
     if (self->dist > contact) {
         Vector2 dir = Vector2Subtract(p->pos, self->pos);
@@ -187,11 +206,20 @@ void spawn_enemies(GameState *state) {
         if (map[cy * MAP_COLS + cx] != 0) continue;
         Vector2 cell_center = {cx + 0.5f, cy + 0.5f};
 
+        // Require a clear line of sight to the player, so the enemy never
+        // spawns behind a wall it could only get stuck against.
+        Vector2 to_player = Vector2Subtract(state->player.pos, cell_center);
+        float to_player_dist = Vector2Length(to_player);
+        if (check_ray_collision(state, cell_center, to_player, to_player_dist,
+                                CMSK_WALL).type != COLLISION_NONE) continue;
+
         EnemyData *ed = malloc(sizeof(EnemyData));
         ed->hp = ENEMY_HP;
         ed->hit_flash_until = 0;
         ed->dead = false;
         ed->death_time = 0;
+        ed->best_dist = 1e9f;  // first frame will snap this to the real distance
+        ed->progress_time = state->game_time;
         da_append(&state->entities, create_enemy_pos(cell_center, ed));
         last_spawn_time = state->game_time;
         cull_corpses(state);
