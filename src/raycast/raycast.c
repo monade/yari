@@ -171,11 +171,11 @@ void draw_entities(GameState *state) {
         int vmove = (int)((sprite.vmove*state->screen_width) / transform.y);
 
         int spriteHeight = abs((int)((state->screen_width * (1.0 - sprite.vdiv)) / transform.y));
-        int drawStartY = (-spriteHeight + state->screen_height)/2;
-        if (vmove >= 0) drawStartY += vmove;
+        // vmove translates the whole sprite vertically; shift both edges so the
+        // body is not clipped (matches the (y - vmove) texture sampling below).
+        int drawStartY = (-spriteHeight + state->screen_height)/2 + vmove;
         if (drawStartY < 0) drawStartY = 0;
-        int drawEndY = (spriteHeight + state->screen_height)/2;
-        if(vmove < 0) drawEndY += vmove;
+        int drawEndY = (spriteHeight + state->screen_height)/2 + vmove;
         if (drawEndY >= state->screen_height) drawEndY = state->screen_height - 1;
 
         int spriteWidth = abs((int)((state->screen_width * (1.0 - sprite.hdiv)) / transform.y));

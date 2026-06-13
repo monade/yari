@@ -47,6 +47,7 @@
 #define ENEMY_TEX             tx_spr_078
 #define ENEMY_HIT_TEX         tx_spr_008
 #define CORPSE_TEX            tx_spr_011
+#define CORPSE_VMOVE          0.12f  // small downward nudge so the corpse rests on the floor
 
 
 JoystickConfig axes[2];
@@ -126,6 +127,7 @@ void player_shoot(GameState *state) {
             ed->dead = true;
             ed->death_time = state->game_time;
             hit.entity->texture_id = CORPSE_TEX;
+            hit.entity->vmove = CORPSE_VMOVE;
             hit.entity->collision_mask = CMSK_NONE;
             hit.entity->update = update_corpse;
             playerState.kills++;
