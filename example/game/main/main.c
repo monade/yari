@@ -34,6 +34,8 @@
 #define ENEMY_DAMAGE          8
 #define ENEMY_HIT_COOLDOWN_MS 700
 #define GUN_RANGE             20.0f
+#define GUN_AMMO              6
+#define RELOAD_KEY            YARI_KEY_R
 #define MAX_ENEMIES           8
 #define SPAWN_INTERVAL_MS     2000
 #define MIN_SPAWN_DIST        5.0f
@@ -64,6 +66,7 @@ static uint32_t muzzle_flash_until = 0;
 typedef struct {
     int hp;
     int gun;
+    int ammo;
     int kills;
     uint32_t start_time;
     uint32_t survived_ms;
@@ -77,6 +80,7 @@ void pickup_gun(GameState *state, Entity *self, size_t index) {
     float pickup_threshold = state->player.collision_threshold + self->collision_threshold;
     if (self->dist < pickup_threshold) {
         playerState.gun = 1;
+        playerState.ammo = GUN_AMMO;
         da_remove_unordered(&state->entities, index);
     }
 }
@@ -113,8 +117,11 @@ void update_enemy(GameState *state, Entity *self, size_t index) {
 
 void player_shoot(GameState *state) {
     if (playerState.gun == 0) return;
+    if (is_key_pressed(RELOAD_KEY)) playerState.ammo = GUN_AMMO;
     if (!is_key_pressed(FIRE_KEY)) return;
+    if (playerState.ammo <= 0) return;  // out of ammo: press R to reload
 
+    playerState.ammo--;
     muzzle_flash_until = state->game_time + MUZZLE_FLASH_MS;
 
     CollisionInfo hit = check_ray_collision(state, state->player.pos, state->player.dir,
@@ -211,6 +218,34 @@ void move_player(GameState *state) {
     p->pos = slide_collision(state, p->pos, target, &hit, p->collision_threshold, CMSK_PLAYER);
 }
 
+// Abstract bullet icons in the bottom-right: filled = loaded, dim = spent.
+void draw_ammo(GameState *state) {
+    if (playerState.gun == 0) return;
+
+    int u = state->screen_width / 100;
+    if (u < 2) u = 2;
+    int bw = 2 * u;                 // bullet width
+    int bh = 5 * u;                 // bullet height
+    int gap = 2 * u;                // gap between bullets
+    int margin = 3 * u;
+    int total = GUN_AMMO * bw + (GUN_AMMO - 1) * gap;
+    int x0 = state->screen_width - margin - total;
+    int y0 = state->screen_height - margin - bh;
+
+    int tipw = bw / 2;
+    if (tipw < 1) tipw = 1;
+    int tiph = bh / 3;
+
+    for (int i = 0; i < GUN_AMMO; i++) {
+        bool loaded = i < playerState.ammo;
+        pixel_t body = loaded ? C_YELLOW : color_brightness(C_YELLOW, -0.78f);
+        pixel_t tip  = loaded ? C_ORANGE : color_brightness(C_ORANGE, -0.78f);
+        int x = x0 + i * (bw + gap);
+        draw_rectangle(x + (bw - tipw) / 2, y0, tipw, tiph, tip);   // pointed tip
+        draw_rectangle(x, y0 + tiph, bw, bh - tiph, body);          // casing
+    }
+}
+
 void draw_hud(GameState *state) {
     char buf[64];
 
@@ -240,6 +275,16 @@ void draw_hud(GameState *state) {
         }
     }
 
+    draw_ammo(state);
+
+    // Out-of-ammo prompt, blinking in the center.
+    if (playerState.gun == 1 && playerState.ammo <= 0 && (state->game_time / 350) % 2 == 0) {
+        int tx = state->screen_width / 2 - 60;
+        int ty = state->screen_height / 2 - 50;
+        draw_text("OUT OF AMMO", tx, ty, fonts[FONT_SM], C_RED);
+        draw_text("R TO RELOAD", tx, ty + 16, fonts[FONT_SM], C_WHITE);
+    }
+
     int cx = state->screen_width / 2;
     int cy = state->screen_height / 2;
     draw_rectangle(cx - 2, cy, 4, 1, C_WHITE);
@@ -258,6 +303,7 @@ void start_run(GameState *state) {
 
     state->player = init_player();
     playerState.hp = 100;
+    playerState.ammo = GUN_AMMO;
     playerState.kills = 0;
     playerState.start_time = state->game_time;
     playerState.last_hit_time = 0;
@@ -282,6 +328,7 @@ void init_game(GameState *state) {
 
     playerState.hp = 100;
     playerState.gun = 0;
+    playerState.ammo = 0;
     playerState.kills = 0;
     playerState.start_time = 0;
     playerState.survived_ms = 0;
