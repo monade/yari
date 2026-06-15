@@ -1,6 +1,8 @@
 YARI_CFLAGS = -Wall -Wextra -O2
 RAYLIB_CFLAGS = $(shell pkg-config --cflags raylib)
 RAYLIB_LIBS = $(shell pkg-config --libs raylib) -lm
+SDL2_CFLAGS = $(shell pkg-config --cflags sdl2)
+SDL2_LIBS = $(shell pkg-config --libs sdl2) -lm
 RAYLIB_WEB_VERSION ?= 5.5
 RAYLIB_WEB_PATH ?= external/raylib
 RAYLIB_WEB_LIB = $(RAYLIB_WEB_PATH)/src/libraylib.a
@@ -30,6 +32,7 @@ RAYLIB_WEB_DEPS = \
 
 MAIN_CFLAGS = -Wall -Wextra -O2 -I./src/yari
 MAIN_LIBS = -Lbuild/yari -lyari_raylib
+SDL_MAIN_LIBS = -Lbuild/yari -lyari_sdl
 
 EMCC = emcc
 EMAR = emar
@@ -61,6 +64,15 @@ build/yari/libyari_raylib.a: build/yari.o build/colors.o build/renderer_common.o
 	@mkdir -p build/yari
 	ar rcs build/yari/libyari_raylib.a build/yari.o build/colors.o build/renderer_common.o build/inputs.o build/renderer.o build/physics.o
 
+## SDL2
+build/inputs_sdl.o: src/yari/platform/sdl/inputs.c src/yari/inputs.h
+	$(CC) $(YARI_CFLAGS) $(SDL2_CFLAGS) -c src/yari/platform/sdl/inputs.c -o build/inputs_sdl.o
+build/renderer_sdl.o: src/yari/platform/sdl/renderer.c src/yari/renderer.h
+	$(CC) $(YARI_CFLAGS) $(SDL2_CFLAGS) -c src/yari/platform/sdl/renderer.c -o build/renderer_sdl.o
+build/yari/libyari_sdl.a: build/yari.o build/colors.o build/renderer_common.o build/inputs_sdl.o build/renderer_sdl.o build/physics.o
+	@mkdir -p build/yari
+	ar rcs build/yari/libyari_sdl.a build/yari.o build/colors.o build/renderer_common.o build/inputs_sdl.o build/renderer_sdl.o build/physics.o
+
 ## Raylib web
 build/yari_web.o: src/yari/yari.c src/yari/yari.h src/yari/renderer.h src/yari/inputs.h src/yari/colors.h src/yari/physics.h
 	$(EMCC) $(RAYLIB_WEB_CFLAGS) -c src/yari/yari.c -o build/yari_web.o
@@ -79,10 +91,11 @@ $(RAYLIB_WEB_YARI_LIB): $(RAYLIB_WEB_YARI_OBJS)
 	$(EMAR) rcs $(RAYLIB_WEB_YARI_LIB) $(RAYLIB_WEB_YARI_OBJS)
 
 # Tools
+.PHONY: assets map-builder run-map-builder
+
 build/assets_packer: src/tools/assets_packer.c
 	$(CC) -o build/assets_packer src/tools/assets_packer.c -lm
 
-example/game/main/assets.h: build/assets_packer assets/*.png
 build/font_baker: src/tools/font_baker.c
 	$(CC) -o build/font_baker src/tools/font_baker.c -I src/yari
 
@@ -92,9 +105,6 @@ assets: build/assets_packer build/font_baker
 
 build/map_builder: src/tools/map_builder.c src/tools/raygui.h
 	$(CC) -Wall -Wextra -O2 $(RAYLIB_CFLAGS) -I./src/tools -o build/map_builder src/tools/map_builder.c $(RAYLIB_LIBS)
-
-.PHONY: assets map-builder run-map-builder 
-assets: example/game/main/assets.h
 map-builder: build/map_builder
 run-map-builder: map-builder
 	build/map_builder assets example/game/main/level.h
@@ -122,6 +132,15 @@ build/ray: assets build/yari/libyari_raylib.a example/game/main/main.c
 ray: build/ray
 run: ray
 	build/ray
+
+### SDL2 game example
+build/sdl: assets build/yari/libyari_sdl.a example/game/main/main.c
+	$(CC) $(MAIN_CFLAGS) -o build/sdl example/game/main/main.c $(SDL_MAIN_LIBS) $(SDL2_LIBS)
+
+.PHONY: sdl run-sdl
+sdl: build/sdl
+run-sdl: sdl
+	build/sdl
 
 ## WASM raylib example
 
@@ -167,7 +186,7 @@ esp32-base-clean:
 
 ### game example
 .PHONY: esp32-build esp32-flash esp32-monitor esp32-flash-monitor esp32-clean
-esp32-build:
+esp32-build: assets
 	cd example/game && . $(ESP32_HOME)/export.sh && idf.py build && idf.py size
 
 esp32-flash: esp32-build

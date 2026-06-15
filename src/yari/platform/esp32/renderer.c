@@ -1,17 +1,19 @@
 #include <stdint.h>
+#include <string.h>
+#include <esp_attr.h>
 #include <esp_timer.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include "driver/spi_master.h"
 #include "driver/gpio.h"
 #include "renderer.h"
 #include "inputs.h"
 #include "colors.h"
 
-#ifdef FB_DRAM
-#define FB_ATTR static
-#else
-// Attribute to place framebuffer in IRAM
-#define FB_ATTR __attribute__((section(".iram1"))) static
-#endif
+// Stream the next frame to the panel over DMA while the CPU already renders the
+// following frame into the other buffer. Costs a second framebuffer in DRAM
+// (LCD_W*LCD_H*2 bytes). If the link runs out of DRAM (".dram0.bss overflow"),
+// set this to 0 to fall back to a single buffer with a blocking transfer.
 
 // Panel size (T-Display active area)
 #ifndef LCD_W
@@ -50,26 +52,54 @@
 #define SPI_CLOCK_SPEED (80 * 1000 * 1000)
 #endif
 
-#define SCREEN_BUFFER_SIZE (LCD_W * LCD_H * 2)
-
-
+#define SCREEN_BUFFER_SIZE (LCD_W * LCD_H * sizeof(uint16_t))
+#define SCREEN_PIXEL_COUNT (LCD_W * LCD_H)
 
 static int64_t last_frame_start_us = 0;
 static int64_t frame_start_time_us = 0;
 static float cached_frame_time = 0.0f;
 static int target_fps = 30;
 static int64_t target_frame_time_us = 1000000 / 30;
+static bool lcd_frame_window_set = false;
 
-FB_ATTR uint16_t framebuffer[LCD_W * LCD_H];
+static uint16_t framebuffer0[SCREEN_PIXEL_COUNT] __attribute__((aligned(4)));
+#ifdef FB_DOUBLE_BUFFER
+static uint16_t framebuffer1[SCREEN_PIXEL_COUNT] __attribute__((aligned(4)));
+static uint16_t *fb_inflight = framebuffer1; // being / last streamed to the panel
+static bool tx_pending = false;
+#endif
 
-static inline void write_u16_iram(uint16_t *addr, uint16_t val) {
-    uintptr_t ptr = (uintptr_t)addr;
-    volatile uint32_t *aligned = (uint32_t *)(ptr & ~3);
-    
-    if (ptr & 2) {
-        *aligned = (*aligned & 0x0000FFFF) | (val << 16);
-    } else {
-        *aligned = (*aligned & 0xFFFF0000) | val;
+static uint16_t *fb_back = framebuffer0;
+static spi_transaction_t fb_trans = {
+    .length = SCREEN_BUFFER_SIZE * 8,
+};
+
+// ST7789 wants big-endian RGB565 on the wire, so the framebuffer stores pixels
+// byte-swapped and is streamed out verbatim. This is the single swap helper used
+// by every write path in this file.
+static inline uint16_t lcd_color(yr_pixel_t color) {
+    uint16_t c = (uint16_t)color;
+    return (uint16_t)((c << 8) | (c >> 8));
+}
+
+static inline void fill_pixels(uint16_t *dst, int count, uint16_t color) {
+    if (count <= 0) return;
+
+    if (((uintptr_t)dst & 2) != 0) {
+        *dst++ = color;
+        count--;
+    }
+
+    uint32_t color2 = (uint32_t)color | ((uint32_t)color << 16);
+    uint32_t *dst32 = (uint32_t *)dst;
+
+    while (count >= 2) {
+        *dst32++ = color2;
+        count -= 2;
+    }
+
+    if (count > 0) {
+        *(uint16_t *)dst32 = color;
     }
 }
 
@@ -77,9 +107,11 @@ static spi_device_handle_t spi;
 
 static void lcd_cmd(uint8_t cmd) {
     gpio_set_level(PIN_DC, 0);
-    spi_transaction_t t = {0};
-    t.length = 8;
-    t.tx_buffer = &cmd;
+    spi_transaction_t t = {
+        .flags = SPI_TRANS_USE_TXDATA,
+        .length = 8,
+        .tx_data = { cmd },
+    };
     spi_device_polling_transmit(spi, &t);
 }
 
@@ -171,9 +203,16 @@ static void lcd_init(void) {
     gpio_set_level(PIN_BL, 1);
 }
 
-void yr_draw_rectangle(int posX, int posY, int width, int height, yr_pixel_t color) {
+void IRAM_ATTR yr_draw_rectangle(int posX, int posY, int width, int height, yr_pixel_t color) {
+    if (width == 1 && height == 1) {
+        if ((unsigned)posX < LCD_W && (unsigned)posY < LCD_H) {
+            fb_back[posY * LCD_W + posX] = lcd_color(color);
+        }
+        return;
+    }
+
     if (width <= 0 || height <= 0) return;
-    
+
     // Clipping
     if (posX < 0) {
         width += posX;
@@ -187,40 +226,67 @@ void yr_draw_rectangle(int posX, int posY, int width, int height, yr_pixel_t col
     if (posY + height > LCD_H) height = LCD_H - posY;
     if (width <= 0 || height <= 0) return;
 
-    // big endian framebuffer
-    color = (color << 8) | (color >> 8);
+    uint16_t native_color = lcd_color(color);
+    uint16_t *dst = fb_back + posY * LCD_W + posX;
+
+    if (width == 1) {
+        for (int y = 0; y < height; y++) {
+            *dst = native_color;
+            dst += LCD_W;
+        }
+        return;
+    }
+
+    if (width == 2) {
+        if (((uintptr_t)dst & 2) == 0) {
+            uint32_t native_color2 = (uint32_t)native_color | ((uint32_t)native_color << 16);
+            for (int y = 0; y < height; y++) {
+                *(uint32_t *)dst = native_color2;
+                dst += LCD_W;
+            }
+        } else {
+            for (int y = 0; y < height; y++) {
+                dst[0] = native_color;
+                dst[1] = native_color;
+                dst += LCD_W;
+            }
+        }
+        return;
+    }
+
+    if (posX == 0 && width == LCD_W) {
+        fill_pixels(dst, height * LCD_W, native_color);
+        return;
+    }
 
     for (int y = 0; y < height; y++) {
-        int lCD_offset = (posY + y) * LCD_W + posX;
-        for (int x = 0; x < width; x++) {
-            #ifdef FB_DRAM
-            framebuffer[lCD_offset + x] = color;
-            #else
-            write_u16_iram(&framebuffer[lCD_offset + x], color);
-            #endif
-        }
+        fill_pixels(dst, width, native_color);
+        dst += LCD_W;
     }
 }
 
-void yr_clear_screen(yr_pixel_t color) {
-    color = (color << 8) | (color >> 8);
-    uint32_t color2 = (color << 16) | color;
-    memset32(framebuffer, color2, SCREEN_BUFFER_SIZE);
+void IRAM_ATTR yr_clear_screen(yr_pixel_t color) {
+    fill_pixels(fb_back, SCREEN_PIXEL_COUNT, lcd_color(color));
 }
 
 
 static void set_target_fps(unsigned int fps) {
     target_fps = fps;
-    target_frame_time_us = 1000000 / fps;
+    target_frame_time_us = fps > 0 ? 1000000 / fps : 0;
 }
 
 void yr_renderer_init(int width, int height, const char *title, unsigned int target_fps) {
     (void)width;
     (void)height;
     (void)title;
+    memset(framebuffer0, 0, sizeof(framebuffer0));
+#ifdef FB_DOUBLE_BUFFER
+    memset(framebuffer1, 0, sizeof(framebuffer1));
+#endif
     lcd_init();
     yr_inputs_init();
     set_target_fps(target_fps);
+    lcd_frame_window_set = false;
 }
 
 bool yr_game_should_close() {
@@ -237,24 +303,52 @@ void yr_begin_drawing() {
 }
 
 void yr_render_screen() {
-  lcd_set_window(0, 0, LCD_W - 1, LCD_H - 1);
+#ifdef FB_DOUBLE_BUFFER
+  // The previous frame streamed out via DMA while this frame was being rendered.
+  // Reclaim it before touching the SPI bus again. This almost never blocks: a
+  // full frame of CPU work is far longer than the ~6.5 ms transfer.
+  if (tx_pending) {
+    spi_transaction_t *done;
+    spi_device_get_trans_result(spi, &done, portMAX_DELAY);
+    tx_pending = false;
+  }
+#endif
+
+  if (!lcd_frame_window_set) {
+    lcd_set_window(0, 0, LCD_W - 1, LCD_H - 1);
+    lcd_frame_window_set = true;
+  } else {
+    lcd_cmd(0x2C);
+  }
   gpio_set_level(PIN_DC, 1);
-  
-  spi_transaction_t t = {0};
-  t.length = SCREEN_BUFFER_SIZE * 8;
-  t.tx_buffer = ((uint8_t*)framebuffer);
-  
-  ESP_ERROR_CHECK(spi_device_transmit(spi, &t));
+
+#ifdef FB_DOUBLE_BUFFER
+  fb_trans.tx_buffer = fb_back;
+  ESP_ERROR_CHECK(spi_device_queue_trans(spi, &fb_trans, portMAX_DELAY));
+  tx_pending = true;
+
+  // Render the next frame into the other buffer while this one is transmitted.
+  uint16_t *just_rendered = fb_back;
+  fb_back = fb_inflight;
+  fb_inflight = just_rendered;
+#else
+  fb_trans.tx_buffer = fb_back;
+  ESP_ERROR_CHECK(spi_device_polling_transmit(spi, &fb_trans));
+#endif
 }
 
 void yr_end_drawing() {
     if (target_fps > 0) {
-        int64_t frame_end_time_us = esp_timer_get_time();
-        int64_t frame_elapsed_us = frame_end_time_us - frame_start_time_us;
-        int64_t sleep_time_us = target_frame_time_us - frame_elapsed_us;
-        
+        int64_t target_end_us = frame_start_time_us + target_frame_time_us;
+        int64_t sleep_time_us = target_end_us - esp_timer_get_time();
+
         if (sleep_time_us > 0) {
-            vTaskDelay(pdMS_TO_TICKS(sleep_time_us / 1000));
+            // Block-sleep the bulk (yields the CPU so the idle task feeds the
+            // watchdog), then spin the sub-tick remainder so the frame period
+            // stays tight and the FPS reads as stable rather than jittery.
+            int64_t ms = sleep_time_us / 1000;
+            if (ms > 1) vTaskDelay(pdMS_TO_TICKS(ms - 1));
+            while (esp_timer_get_time() < target_end_us) { /* busy-wait */ }
         }
     }
 }

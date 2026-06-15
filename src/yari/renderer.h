@@ -4,8 +4,12 @@
 #include "colors.h"
 
 #define YR_FOV_ANGLE (PI / 3.5)
+#ifndef YR_MAX_RENDER_DIST
 #define YR_MAX_RENDER_DIST 20.0
+#endif
+#ifndef YR_TEXTURE_SIZE
 #define YR_TEXTURE_SIZE 64
+#endif
 
 typedef enum {
     YR_FONT_SM,
@@ -27,25 +31,8 @@ typedef struct {
     int atlas_w, atlas_h;
 } yr_font_t;
 
-/**
- * Draw an asset (texture or color) on the screen at the specified position.
- * @param asset      pixel data (top-left origin)
- * @param x          x position of the top-left corner
- * @param y          y position of the top-left corner
- * @param width      desired width of the asset on screen in pixels
- * @param height     desired height of the asset on screen in pixels
- * @param row_stride width of the asset in pixels
- */
-void yr_draw_asset(const yr_pixel_t* asset, int x, int y, int width, int height, int row_stride);
+void yr_draw_texture(int x, int y, int width, int height, const yr_pixel_t *texture, int texture_width, int texture_height, bool skip_empty);
 
-/**
- * Draw text on the screen using a baked bitmap font.
- * @param text      null-terminated string to draw
- * @param x         x position of the top-left corner
- * @param y         y position of the top-left corner
- * @param font      font to use (e.g. press_start_2p_sm or press_start_2p_md)
- * @param c         text color
- */
 void yr_draw_text(const char *text, int x, int y, const yr_font_t *font, yr_pixel_t c);
 
 float yr_get_frame_time();
@@ -69,7 +56,8 @@ void yr_end_drawing();
 float yr_get_fps();
 
 #ifdef YARI_NO_PREFIX
-#define draw_asset yr_draw_asset
+#define draw_texture yr_draw_texture
+#define draw_texture_column yr_draw_texture_column
 #define draw_text yr_draw_text
 #define get_frame_time yr_get_frame_time
 #define get_time yr_get_time

@@ -10,6 +10,7 @@
 
 #define PLAYER_ROTATION_SPEED 1.25
 #define PLAYER_SPEED 2.5
+#define PLAYER_COLLISION_THRESHOLD 0.15f
 
 // 0 null, 1-127 texture_id, 128-255 color_id
 static uint8_t map[ROWS][COLS] = {0};
@@ -18,22 +19,22 @@ static uint8_t map[ROWS][COLS] = {0};
 void init_map() {
     // border
     for (int i = 0; i < ROWS; i++) {
-        map[i][0] = 131;
-        map[i][COLS - 1] = 131;
+        map[i][0] = YR_WALL_GREEN;
+        map[i][COLS - 1] = YR_WALL_GREEN;
     }
     for (int j = 0; j < COLS; j++) {
-        map[0][j] = 131;
-        map[ROWS - 1][j] = 131;
+        map[0][j] = YR_WALL_GREEN;
+        map[ROWS - 1][j] = YR_WALL_GREEN;
     }
 
     // inner blocks
-    map[7][7] = 130;
-    map[8][8] = 129;
-    map[9][9] = 134;
+    map[7][7] = YR_WALL_RED;
+    map[8][8] = YR_WALL_BLUE;
+    map[9][9] = YR_WALL_YELLOW;
 }
 
 void move_player(GameState *state) {
-    Player *p = &state->player;
+    Camera *p = &state->camera;
     if (is_key_down(YR_KEY_A)) {
         p->dir = rotate(p->dir, YR_COUNTERCLOCKWISE, PLAYER_ROTATION_SPEED);
     }
@@ -47,7 +48,7 @@ void move_player(GameState *state) {
     if (is_key_down(YR_KEY_E)) target = move(target, p->dir, YR_RIGHT, PLAYER_SPEED);
     if (is_key_down(YR_KEY_Q)) target = move(target, p->dir, YR_LEFT, PLAYER_SPEED);
 
-    p->pos = slide_collision(state, p->pos, target, NULL, p->collision_threshold, YR_CMSK_ALL);
+    p->pos = slide_collision(state, p->pos, target, NULL, PLAYER_COLLISION_THRESHOLD, YR_CMSK_ALL);
 }
 
 
@@ -59,7 +60,7 @@ void yr_init_game(GameState *state) {
   state->map = (uint8_t *)map;
   state->map_cols = COLS;
   state->map_rows = ROWS;
-  state->player = (Player){.pos = {14.5, 5.5}, .dir = {-0.8, 0.5}, .collision_threshold = 0.15};
+  state->camera = (Camera){.pos = {14.5, 5.5}, .dir = {-0.8, 0.5}};
 }
 
 void yr_update_game(GameState *state) {

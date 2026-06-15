@@ -101,28 +101,11 @@ typedef enum {
     YR_Y_AXIS = 1,
 } YrJoystickAxis;
 
-#ifdef ESP32
-#include "esp_adc/adc_oneshot.h"
-typedef struct {
-  adc_oneshot_unit_handle_t adc_handle;
-  adc_unit_t adc_unit;
-  adc_channel_t adc_channel;
-  int pin;
-} YrJoystickConfig;
-#else 
-typedef struct {
-  int adc_handle;
-  int adc_unit;
-  int adc_channel;
-  int pin;
-} YrJoystickConfig;
-#endif
-
 void yr_inputs_init();
-
-
-void yr_joystick_init(int joystick_pin_x, int joystick_pin_y, YrJoystickConfig axes[2]);
-float yr_joystick_get_axis(YrJoystickConfig axis);
+void yr_esp_key_init(int pin, int key);
+int yr_esp_joystick_init(int joystick_pin_x, int joystick_pin_y);
+void yr_esp_key_init(int pin, int key);
+float yr_esp_joystick_get_axis(int joystick_id, int axis);
 bool yr_is_key_down(int key);
 bool yr_is_key_up(int key);
 bool yr_is_key_pressed(int key);
@@ -130,8 +113,9 @@ bool yr_is_key_pressed(int key);
 #ifdef YARI_NO_PREFIX
 #define JoystickConfig YrJoystickConfig
 #define inputs_init yr_inputs_init
-#define joystick_init yr_joystick_init
-#define joystick_get_axis yr_joystick_get_axis
+#define esp_key_init yr_esp_key_init
+#define esp_joystick_init yr_esp_joystick_init
+#define esp_joystick_get_axis yr_esp_joystick_get_axis
 #define is_key_down yr_is_key_down
 #define is_key_up yr_is_key_up
 #define is_key_pressed yr_is_key_pressed

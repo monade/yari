@@ -2528,27 +2528,27 @@ static bool write_level_header(App *app) {
     str_append(&out, ")\n\n");
 
     str_appendf(&out, "#define YR_LEVEL_FLOOR %s\n", asset_symbol_or_null(app, app->floor_asset));
-    str_appendf(&out, "#define YR_LEVEL_CEIL  %s\n\n", asset_symbol_or_null(app, app->ceil_asset));
+    str_appendf(&out, "#define YR_LEVEL_CEIL  %s\n", asset_symbol_or_null(app, app->ceil_asset));
+    str_appendf(&out, "#define YR_PLAYER_COLLISION_THRESHOLD %f\n\n", app->player_collision_threshold);
 
     {
         Vector2 player_dir_val = normalized_player_dir(app);
-        str_append(&out, "static inline YrPlayer init_player_pos(Vector2 pos) {\n");
-        str_append(&out, "    return (YrPlayer){\n");
+        str_append(&out, "static inline YrCamera init_camera_pos(Vector2 pos) {\n");
+        str_append(&out, "    return (YrCamera){\n");
         str_append(&out, "        .pos = pos,\n");
         str_append(&out, "        .dir = (Vector2){");
         append_float_literal(&out, player_dir_val.x);
         str_append(&out, ", ");
         append_float_literal(&out, player_dir_val.y);
         str_append(&out, "},\n");
-        str_append(&out, "        .collision_threshold = ");
-        append_float_literal(&out, app->player_collision_threshold);
-        str_append(&out, ",\n");
+        str_append(&out, "        .horizon = 0.0f,\n");
+        str_append(&out, "        .angle = 0.0f\n");
         str_append(&out, "    };\n");
         str_append(&out, "}\n\n");
     }
 
-    str_append(&out, "static inline YrPlayer init_player(void) {\n");
-    str_append(&out, "    return init_player_pos((Vector2){");
+    str_append(&out, "static inline YrCamera init_camera(void) {\n");
+    str_append(&out, "    return init_camera_pos((Vector2){");
     append_float_literal(&out, app->player_pos.x);
     str_append(&out, ", ");
     append_float_literal(&out, app->player_pos.y);
@@ -2653,6 +2653,17 @@ static bool write_level_header(App *app) {
     }
     str_append(&out, "    };\n");
     str_append(&out, "    return data;\n");
+    str_append(&out, "}\n\n");
+
+    str_append(&out, "static inline void load_level(YrGameState *state) {\n");
+    str_append(&out, "    state->assets_map = assets_map;\n");
+    str_append(&out, "    state->map = level_get_map();\n");
+    str_append(&out, "    state->map_cols = YR_MAP_COLS;\n");
+    str_append(&out, "    state->map_rows = YR_MAP_ROWS;\n");
+    str_append(&out, "    state->floor_texture = YR_LEVEL_FLOOR;\n");
+    str_append(&out, "    state->ceil_texture = YR_LEVEL_CEIL;\n");
+    str_append(&out, "    state->camera = init_camera();\n");
+    str_append(&out, "    level_append_exported_entities(&state->entities);\n");
     str_append(&out, "}\n\n");
 
     str_append(&out, "#endif // YR_LEVEL_H\n");

@@ -15,13 +15,18 @@ bool yr_is_key_pressed(int key) {
 }
 
 void yr_inputs_init() {}
-
-void yr_joystick_init(int joystick_pin_x, int joystick_pin_y, YrJoystickConfig axes[2]) {
-  (void)joystick_pin_x;
-  (void)joystick_pin_y;
-  (void)axes;
+void yr_esp_key_init(int pin, int key) {
+    (void)pin;
+    (void)key;
 }
-float yr_joystick_get_axis(YrJoystickConfig axis) {
-  (void)axis;
-  return 0;
+
+int yr_esp_joystick_init(int joystick_pin_x, int joystick_pin_y) {
+    (void)joystick_pin_x;
+    (void)joystick_pin_y;
+    return 0;
+}
+float yr_esp_joystick_get_axis(int joystick_id, int axis) {
+    (void)joystick_id;
+    (void)axis;
+    return 0;
 }

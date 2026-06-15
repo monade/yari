@@ -3,7 +3,7 @@ idf_component_register(
         "yari.c"
         "colors.c"
         "physics.c"
-        "hud.c"
+        "renderer_common.c"
         "platform/esp32/inputs.c"
         "platform/esp32/renderer.c"
     INCLUDE_DIRS
@@ -14,4 +14,10 @@ idf_component_register(
         esp_timer
         esp_driver_gpio
         esp_adc
+)
+
+target_compile_options(${COMPONENT_LIB} PRIVATE
+    -O3
+    -ffast-math
+    -fno-math-errno
 )

@@ -12,8 +12,9 @@
 typedef struct {
     Vector2 pos;
     Vector2 dir;
-    float collision_threshold;
-} YrPlayer;
+    float horizon;
+    float angle;
+} YrCamera;
 
 typedef struct YrGameState YrGameState;
 
@@ -42,7 +43,7 @@ typedef struct {
 } YrEntities;
 
 typedef struct YrGameState {
-    YrPlayer player;
+    YrCamera camera;
     int screen_width;
     int screen_height;
     char *game_title;
@@ -57,7 +58,8 @@ typedef struct YrGameState {
     size_t floor_texture;
     size_t ceil_texture;
     uint32_t game_time; // ms since start of game
-    void* state_attributes; // game-defined state
+    void* game_data; // game-defined state
+    
 } YrGameState;
 
 
@@ -90,7 +92,7 @@ void _yr_free_game();
 #include "physics.h"
 
 #ifdef YARI_NO_PREFIX
-#define Player YrPlayer
+#define Camera YrCamera
 #define Entity YrEntity
 #define Entities YrEntities
 #define GameState YrGameState

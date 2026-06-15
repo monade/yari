@@ -1,30 +1,30 @@
 #include "renderer.h"
 
-/**
- *
- * @param asset pointer to pixel data (top-left origin)
- * @param x x position of the top-left corner
- * @param y y position of the top-left corner
- * @param width desired width of the asset on screen in pixels
- * @param height desired height of the asset on screen in pixels
- * @param row_stride width of the asset in pixels
- */
-void yr_draw_asset(
-    const yr_pixel_t* asset,
-    const int x,
-    const int y,
-    const int width,
-    const int height,
-    const int row_stride
+void yr_draw_texture(
+    int x,
+    int y,
+    int width,
+    int height,
+    const yr_pixel_t *texture,
+    int texture_width,
+    int texture_height,
+    bool skip_empty
 ) {
+    if (width <= 0 || height <= 0 ||
+        texture_width <= 0 || texture_height <= 0 ||
+        !texture) {
+        return;
+    }
+
     for (int dst_row = 0; dst_row < height; dst_row++) {
-        int src_row = dst_row * row_stride / height;
+        int src_row = dst_row * texture_height / height;
 
         for (int dst_col = 0; dst_col < width; dst_col++) {
-            int src_col = dst_col * row_stride / width;
-            yr_pixel_t pixel = asset[src_row * row_stride + src_col];
+            int src_col = dst_col * texture_width / width;
 
-            if (pixel != YR_EMPTY_PIXEL) {
+            yr_pixel_t pixel = texture[src_row * texture_width + src_col];
+
+            if (!skip_empty || pixel != YR_EMPTY_PIXEL) {
                 yr_draw_rectangle(x + dst_col, y + dst_row, 1, 1, pixel);
             }
         }

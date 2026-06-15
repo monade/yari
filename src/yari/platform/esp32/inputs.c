@@ -1,108 +1,181 @@
+#include <assert.h>
 #include <stdbool.h>
 #include "../../inputs.h"
 #include "driver/gpio.h"
 #include "esp_adc/adc_oneshot.h"
+#include "soc/soc_caps.h"
 
-// GPIO predefined buttons
-#ifndef PIN_KEY_A
-#define PIN_KEY_A 34
-#endif
+#define YR_ESP_MAX_JOYSTICKS 8
+#define YR_JOYSTICK_AXIS_COUNT 2
+#define YR_JOYSTICK_ADC_MAX 4095
+#define YR_JOYSTICK_ADC_CENTER 2048
+#define YR_JOYSTICK_CALIBRATION_SAMPLES 16
+#define YR_JOYSTICK_DEADZONE 32
 
-#ifndef PIN_KEY_D
-#define PIN_KEY_D 35
-#endif
+struct joystick_config_t {
+  adc_oneshot_unit_handle_t adc_handle;
+  adc_unit_t adc_unit;
+  adc_channel_t adc_channel;
+  int pin;
+  int center;
+};
 
-#ifndef PIN_KEY_S
-#define PIN_KEY_S 36
-#endif
+static bool key_state[350] = {0};
+__attribute__((section(".iram1"))) static int key_maps[350] = {0};
+static adc_oneshot_unit_handle_t adc_unit_handles[SOC_ADC_PERIPH_NUM] = {0};
+static struct joystick_config_t joysticks[YR_ESP_MAX_JOYSTICKS][YR_JOYSTICK_AXIS_COUNT] = {0};
+static int joystick_count = 0;
 
-#ifndef PIN_KEY_W
-#define PIN_KEY_W 37
-#endif
+void yr_inputs_init() {}
 
-bool gpios_states[350] = {0};
-
-void yr_inputs_init() {
-  gpio_set_direction(PIN_KEY_A, GPIO_MODE_INPUT);
-  gpio_set_pull_mode(PIN_KEY_A, GPIO_PULLUP_ONLY);
-
-  gpio_set_direction(PIN_KEY_D, GPIO_MODE_INPUT);
-  gpio_set_pull_mode(PIN_KEY_D, GPIO_PULLUP_ONLY);
-
-  gpio_set_direction(PIN_KEY_S, GPIO_MODE_INPUT);
-  gpio_set_pull_mode(PIN_KEY_S, GPIO_PULLUP_ONLY);
-
-  gpio_set_direction(PIN_KEY_W, GPIO_MODE_INPUT);
-  gpio_set_pull_mode(PIN_KEY_W, GPIO_PULLUP_ONLY);
+static inline void validate_pin(int pin) {
+    assert(pin >= 0 && pin < GPIO_NUM_MAX);
 }
 
-adc_oneshot_chan_cfg_t chan_cfg_x = {
-  .atten = ADC_ATTEN_DB_12, // range 0–3.3V
-  .bitwidth = ADC_BITWIDTH_12, // 0–4095
-};
-adc_oneshot_chan_cfg_t chan_cfg_y = {
-  .atten = ADC_ATTEN_DB_12, // range 0–3.3V
-  .bitwidth = ADC_BITWIDTH_12, // 0–4095
-};
+static int get_or_create_adc_unit(adc_unit_t unit, adc_oneshot_unit_handle_t *handle) {
+    if (unit >= SOC_ADC_PERIPH_NUM) {
+        return ESP_ERR_INVALID_ARG;
+    }
 
-void yr_joystick_init(int joystick_pin_x, int joystick_pin_y, YrJoystickConfig axes[2]) {
-  axes[YR_X_AXIS].pin = joystick_pin_x;
-  axes[YR_Y_AXIS].pin = joystick_pin_y;
+    if (adc_unit_handles[unit] == NULL) {
+        adc_oneshot_unit_init_cfg_t unit_cfg = {
+            .unit_id = unit,
+            .ulp_mode = ADC_ULP_MODE_DISABLE,
+        };
+        int ret = adc_oneshot_new_unit(&unit_cfg, &adc_unit_handles[unit]);
+        if (ret != ESP_OK) {
+            return ret;
+        }
+    }
 
-  adc_oneshot_io_to_channel(joystick_pin_x, &axes[YR_X_AXIS].adc_unit, &axes[YR_X_AXIS].adc_channel);
-  adc_oneshot_io_to_channel(joystick_pin_y, &axes[YR_Y_AXIS].adc_unit, &axes[YR_Y_AXIS].adc_channel);
+    *handle = adc_unit_handles[unit];
+    return ESP_OK;
+}
 
-  // 1. Configura l'unità ADC
-  adc_oneshot_unit_init_cfg_t unit_cfg_x = {
-    .unit_id = axes[YR_X_AXIS].adc_unit,
-  };
+static int configure_joystick_axis(struct joystick_config_t *axis, int pin) {
+    axis->pin = pin;
 
-  adc_oneshot_new_unit(&unit_cfg_x, &axes[YR_X_AXIS].adc_handle);
+    int ret = adc_oneshot_io_to_channel(pin, &axis->adc_unit, &axis->adc_channel);
+    if (ret != ESP_OK) {
+        return ret;
+    }
 
-  if (axes[YR_Y_AXIS].adc_unit == axes[YR_X_AXIS].adc_unit) {
-    axes[YR_Y_AXIS].adc_handle = axes[YR_X_AXIS].adc_handle;
-  } else {
-    adc_oneshot_unit_init_cfg_t unit_cfg_y = { .unit_id = axes[YR_Y_AXIS].adc_unit };
-    adc_oneshot_new_unit(&unit_cfg_y, &axes[YR_Y_AXIS].adc_handle);
-  }
+    ret = get_or_create_adc_unit(axis->adc_unit, &axis->adc_handle);
+    if (ret != ESP_OK) {
+        return ret;
+    }
 
-  // 2. Configura il canale
-  adc_oneshot_config_channel(axes[YR_X_AXIS].adc_handle, axes[YR_X_AXIS].adc_channel, &chan_cfg_x);
-  adc_oneshot_config_channel(axes[YR_Y_AXIS].adc_handle, axes[YR_Y_AXIS].adc_channel, &chan_cfg_y);
+    adc_oneshot_chan_cfg_t chan_cfg = {
+        .atten = ADC_ATTEN_DB_12,
+        .bitwidth = ADC_BITWIDTH_12,
+    };
+    return adc_oneshot_config_channel(axis->adc_handle, axis->adc_channel, &chan_cfg);
+}
+
+static int calibrate_joystick_axis(struct joystick_config_t *axis) {
+    int sum = 0;
+    int samples = 0;
+
+    for (int i = 0; i < YR_JOYSTICK_CALIBRATION_SAMPLES; i++) {
+        int value = 0;
+        if (adc_oneshot_read(axis->adc_handle, axis->adc_channel, &value) == ESP_OK) {
+            sum += value;
+            samples++;
+        }
+    }
+
+    if (samples == 0) {
+        return YR_JOYSTICK_ADC_CENTER;
+    }
+
+    return sum / samples;
+}
+
+static float normalize_joystick_axis(int value, int center) {
+    int delta = value - center;
+    if (delta > -YR_JOYSTICK_DEADZONE && delta < YR_JOYSTICK_DEADZONE) {
+        return 0.0f;
+    }
+
+    float range = delta > 0 ? (float)(YR_JOYSTICK_ADC_MAX - center) : (float)center;
+    if (range <= 0.0f) {
+        return 0.0f;
+    }
+
+    float normalized = (float)delta / range;
+    if (normalized > 1.0f) {
+        normalized = 1.0f;
+    } else if (normalized < -1.0f) {
+        normalized = -1.0f;
+    }
+
+    return -normalized;
+}
+
+void yr_esp_key_init(int pin, int key) {
+    validate_pin(pin);
+    gpio_set_direction(pin, GPIO_MODE_INPUT);
+    gpio_set_pull_mode(pin, GPIO_PULLUP_ONLY);
+    key_maps[key] = pin;
+}
+
+int yr_esp_joystick_init(int joystick_pin_x, int joystick_pin_y) {
+    validate_pin(joystick_pin_x);
+    validate_pin(joystick_pin_y);
+
+    if (joystick_count >= YR_ESP_MAX_JOYSTICKS) {
+        return -1;
+    }
+
+    struct joystick_config_t axes[YR_JOYSTICK_AXIS_COUNT] = {0};
+
+    if (configure_joystick_axis(&axes[YR_X_AXIS], joystick_pin_x) != ESP_OK) {
+        return -1;
+    }
+    if (configure_joystick_axis(&axes[YR_Y_AXIS], joystick_pin_y) != ESP_OK) {
+        return -1;
+    }
+
+    axes[YR_X_AXIS].center = calibrate_joystick_axis(&axes[YR_X_AXIS]);
+    axes[YR_Y_AXIS].center = calibrate_joystick_axis(&axes[YR_Y_AXIS]);
+
+    int joystick_id = joystick_count++;
+    joysticks[joystick_id][YR_X_AXIS] = axes[YR_X_AXIS];
+    joysticks[joystick_id][YR_Y_AXIS] = axes[YR_Y_AXIS];
+
+    return joystick_id;
+}
+
+float yr_esp_joystick_get_axis(int joystick_id, int axis) {
+    if (joystick_id < 0 || joystick_id >= joystick_count || axis < 0 || axis >= YR_JOYSTICK_AXIS_COUNT) {
+        return 0.0f;
+    }
+
+    struct joystick_config_t *axis_cfg = &joysticks[joystick_id][axis];
+    int value = 0;
+    int ret = adc_oneshot_read(axis_cfg->adc_handle, axis_cfg->adc_channel, &value);
+    if (ret != ESP_OK) {
+        return 0.0f;
+    }
+
+    return normalize_joystick_axis(value, axis_cfg->center);
 }
 
 bool yr_is_key_down(int key) {
-  if (key == YR_KEY_A) {
-    return !gpio_get_level(PIN_KEY_A);
-  }
-  if (key == YR_KEY_D) {
-    return !gpio_get_level(PIN_KEY_D);
-  }
-  if (key == YR_KEY_S) {
-    return !gpio_get_level(PIN_KEY_S);
-  }
-  if (key == YR_KEY_W) {
-    return !gpio_get_level(PIN_KEY_W);
-  }
-  return 0;
+    int pin = key_maps[key];
+    if (pin == 0) return false;
+    return !gpio_get_level(pin);
 }
 
 bool yr_is_key_up(int key) {
-  return !yr_is_key_down(key);
+    return !yr_is_key_down(key);
 }
 
 bool yr_is_key_pressed(int key) {
-  bool prev = gpios_states[key];
-  bool current = yr_is_key_down(key);
+    bool prev = key_state[key];
+    bool current = yr_is_key_down(key);
 
-  gpios_states[key] = current;
+    key_state[key] = current;
 
-  return current && !prev;
-}
-
-float yr_joystick_get_axis(YrJoystickConfig axis) {
-  int value = 0;
-  adc_oneshot_read(axis.adc_handle, axis.adc_channel, &value);
-
-  return ((float)value / 4095.0) * 2. - 1.;
+    return current && !prev;
 }
