@@ -366,6 +366,23 @@ static void load_asset_textures(Assets *assets) {
     }
 }
 
+static void filter_assets_by_size(Assets *assets, int w, int h) {
+    size_t write = 0;
+    for (size_t i = 0; i < assets->length; i++) {
+        Asset *asset = &assets->data[i];
+        if (asset->texture.width == w && asset->texture.height == h) {
+            if (write != i) assets->data[write] = assets->data[i];
+            write++;
+        } else {
+            if (asset->texture.id != 0) UnloadTexture(asset->texture);
+            free(asset->name);
+            free(asset->path);
+            free(asset->texture_symbol);
+        }
+    }
+    assets->length = write;
+}
+
 static void free_assets(Assets *assets) {
     da_foreach(assets, asset) {
         if (asset->texture.id != 0) UnloadTexture(asset->texture);
@@ -3557,6 +3574,7 @@ int main(int argc, char **argv) {
     GuiSetStyle(DEFAULT, TEXT_SIZE, 14);
 
     load_asset_textures(&app.assets);
+    filter_assets_by_size(&app.assets, 64, 64);
     if (app.assets.length > 0) app.selected_asset = 0;
     else set_status(&app, "No image assets found in %s", asset_dir);
 

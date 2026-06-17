@@ -97,7 +97,7 @@ build/assets_packer: src/tools/assets_packer.c
 	$(CC) -o build/assets_packer src/tools/assets_packer.c -lm
 
 build/font_baker: src/tools/font_baker.c
-	$(CC) -o build/font_baker src/tools/font_baker.c -I src/yari
+	$(CC) -o build/font_baker src/tools/font_baker.c -lm
 
 assets: build/assets_packer build/font_baker
 	build/assets_packer assets example/game/main/assets.h

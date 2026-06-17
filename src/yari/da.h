@@ -89,5 +89,6 @@
 #define da_shrink yr_da_shrink
 #define da_shrink_to_fit yr_da_shrink_to_fit
 #define da_free yr_da_free
+#define ARRAY_LEN YR_ARRAY_LEN
 #endif
 #endif // YR_DA_H

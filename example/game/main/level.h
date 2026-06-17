@@ -460,17 +460,19 @@
 
 #define YR_LEVEL_FLOOR tx_wal_005
 #define YR_LEVEL_CEIL  tx_wal_000
+#define YR_PLAYER_COLLISION_THRESHOLD 0.150000
 
-static inline YrPlayer init_player_pos(Vector2 pos) {
-    return (YrPlayer){
+static inline YrCamera init_camera_pos(Vector2 pos) {
+    return (YrCamera){
         .pos = pos,
         .dir = (Vector2){0.0f, -1.0f},
-        .collision_threshold = 0.15f,
+        .horizon = 0.0f,
+        .angle = 0.0f
     };
 }
 
-static inline YrPlayer init_player(void) {
-    return init_player_pos((Vector2){4.541459f, 94.703178f});
+static inline YrCamera init_camera(void) {
+    return init_camera_pos((Vector2){4.541459f, 94.703178f});
 }
 
 void pickup_gun(YrGameState *state, YrEntity *self, size_t index);
@@ -602,6 +604,17 @@ static inline uint8_t *level_get_map(void) {
         tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001, tx_wal_001,
     };
     return data;
+}
+
+static inline void load_level(YrGameState *state) {
+    state->assets_map = assets_map;
+    state->map = level_get_map();
+    state->map_cols = YR_MAP_COLS;
+    state->map_rows = YR_MAP_ROWS;
+    state->floor_texture = YR_LEVEL_FLOOR;
+    state->ceil_texture = YR_LEVEL_CEIL;
+    state->camera = init_camera();
+    level_append_exported_entities(&state->entities);
 }
 
 #endif // YR_LEVEL_H

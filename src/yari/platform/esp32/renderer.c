@@ -10,11 +10,6 @@
 #include "inputs.h"
 #include "colors.h"
 
-// Stream the next frame to the panel over DMA while the CPU already renders the
-// following frame into the other buffer. Costs a second framebuffer in DRAM
-// (LCD_W*LCD_H*2 bytes). If the link runs out of DRAM (".dram0.bss overflow"),
-// set this to 0 to fall back to a single buffer with a blocking transfer.
-
 // Panel size (T-Display active area)
 #ifndef LCD_W
 #define LCD_W 240
