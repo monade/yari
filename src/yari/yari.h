@@ -49,6 +49,8 @@ typedef struct YrGameState {
     char *game_title;
     unsigned int target_fps;
     uint8_t *map;
+    uint8_t *map_floor;
+    uint8_t *map_ceil;
     uint8_t map_cols;
     uint8_t map_rows;
     YrEntities entities;

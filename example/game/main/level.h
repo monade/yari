@@ -609,6 +609,8 @@ static inline uint8_t *level_get_map(void) {
 static inline void load_level(YrGameState *state) {
     state->assets_map = assets_map;
     state->map = level_get_map();
+    state->map_floor = NULL;
+    state->map_ceil = NULL;
     state->map_cols = YR_MAP_COLS;
     state->map_rows = YR_MAP_ROWS;
     state->floor_texture = YR_LEVEL_FLOOR;

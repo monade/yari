@@ -57,7 +57,6 @@ float yr_get_fps();
 
 #ifdef YARI_NO_PREFIX
 #define draw_texture yr_draw_texture
-#define draw_texture_column yr_draw_texture_column
 #define draw_text yr_draw_text
 #define get_frame_time yr_get_frame_time
 #define get_time yr_get_time

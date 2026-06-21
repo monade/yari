@@ -99,9 +99,15 @@ typedef enum {
 } WallDrawMode;
 
 typedef enum {
+    SURFACE_FLOOR = 0,
+    SURFACE_CEIL = 1,
+} SurfaceTarget;
+
+typedef enum {
     SELECTION_NONE = 0,
     SELECTION_ENTITY = 1,
     SELECTION_WALL = 2,
+    SELECTION_SURFACE = 3,
 } SelectionKind;
 
 typedef struct {
@@ -133,11 +139,14 @@ typedef struct {
     Assets assets;
     PlacedEntities entities;
     WallMap map;
+    WallMap floor_map;
+    WallMap ceil_map;
     Camera2D camera;
 
     int selected_asset;
     int floor_asset;
     int ceil_asset;
+    SurfaceTarget surface_target;
     int editing_entity;
     bool editing_wall;
     int editing_wall_x;
@@ -236,6 +245,8 @@ typedef struct {
 typedef struct {
     bool has_size;
     WallMap map;
+    WallMap floor_map;
+    WallMap ceil_map;
     PlacedEntities entities;
     CollisionLayers collision_layers;
     UpdateFns update_fns;
@@ -517,15 +528,58 @@ static void apply_wall_drag(App *app) {
     }
 }
 
-static void wall_map_resize(App *app, int cols, int rows) {
+static WallMap *active_surface_map(App *app) {
+    return app->surface_target == SURFACE_CEIL ? &app->ceil_map : &app->floor_map;
+}
+
+// The grid that the current cell selection operates on: the active surface map for
+// SELECTION_SURFACE, otherwise the wall map (SELECTION_WALL and the default).
+static WallMap *selection_cell_map(App *app) {
+    return app->selection_kind == SELECTION_SURFACE ? active_surface_map(app) : &app->map;
+}
+
+static void stroke_surface_rect(App *app, int x0, int y0, int x1, int y1) {
+    WallMap *map = active_surface_map(app);
+
+    int min_x = clamp_int(x0 < x1 ? x0 : x1, 0, map->cols - 1);
+    int max_x = clamp_int(x0 > x1 ? x0 : x1, 0, map->cols - 1);
+    int min_y = clamp_int(y0 < y1 ? y0 : y1, 0, map->rows - 1);
+    int max_y = clamp_int(y0 > y1 ? y0 : y1, 0, map->rows - 1);
+
+    for (int y = min_y; y <= max_y; y++) {
+        for (int x = min_x; x <= max_x; x++) {
+            int *cell = wall_map_cell(map, x, y);
+            if (cell) *cell = app->selected_asset;
+        }
+    }
+}
+
+static void apply_surface_drag(App *app) {
+    if (!selected_wall_asset_is_valid(app)) {
+        set_status(app, "Select a texture first");
+        return;
+    }
+    stroke_surface_rect(app, app->wall_drag_start_x, app->wall_drag_start_y, app->wall_drag_end_x, app->wall_drag_end_y);
+}
+
+static void wall_map_resize_copy(WallMap *map, int cols, int rows) {
     WallMap next = {0};
     wall_map_init(&next, cols, rows);
 
-    int copy_cols = app->map.cols < cols ? app->map.cols : cols;
-    int copy_rows = app->map.rows < rows ? app->map.rows : rows;
+    int copy_cols = map->cols < cols ? map->cols : cols;
+    int copy_rows = map->rows < rows ? map->rows : rows;
     for (int y = 0; y < copy_rows; y++) {
-        memcpy(&next.data[y * next.cols], &app->map.data[y * app->map.cols], (size_t)copy_cols * sizeof(next.data[0]));
+        memcpy(&next.data[y * next.cols], &map->data[y * map->cols], (size_t)copy_cols * sizeof(next.data[0]));
     }
+
+    wall_map_free(map);
+    *map = next;
+}
+
+static void wall_map_resize(App *app, int cols, int rows) {
+    wall_map_resize_copy(&app->map, cols, rows);
+    wall_map_resize_copy(&app->floor_map, cols, rows);
+    wall_map_resize_copy(&app->ceil_map, cols, rows);
 
     for (size_t i = 0; i < app->entities.length;) {
         PlacedEntity *entity = &app->entities.data[i];
@@ -536,8 +590,6 @@ static void wall_map_resize(App *app, int cols, int rows) {
         }
     }
 
-    wall_map_free(&app->map);
-    app->map = next;
     app->pending_cols = cols;
     app->pending_rows = rows;
 
@@ -1085,6 +1137,11 @@ static void refresh_entity_editor_primary(App *app) {
 static void refresh_wall_editor_primary(App *app) {
     if (app->selected_walls.length == 0) return;
     SelectedWall wall = app->selected_walls.data[0];
+    if (app->selection_kind == SELECTION_SURFACE) {
+        int *cell = wall_map_cell(active_surface_map(app), wall.x, wall.y);
+        if (cell && *cell >= 0) app->selected_asset = *cell;
+        return;
+    }
     if (wall_map_inside(&app->map, wall.x, wall.y)) {
         load_wall_fields_into_editor(app, wall.x, wall.y);
     }
@@ -1109,12 +1166,17 @@ static void add_entity_to_selection(App *app, int entity_index) {
 }
 
 static void add_wall_to_selection(App *app, int x, int y) {
-    int *cell = wall_map_cell(&app->map, x, y);
-    if (!cell || *cell < 0) return;
     if (app->selection_kind == SELECTION_ENTITY) return;
 
+    SelectionKind kind = app->selection_kind;
+    if (kind == SELECTION_NONE) kind = (app->brush == BRUSH_SURFACE) ? SELECTION_SURFACE : SELECTION_WALL;
+
+    WallMap *map = (kind == SELECTION_SURFACE) ? active_surface_map(app) : &app->map;
+    int *cell = wall_map_cell(map, x, y);
+    if (!cell || *cell < 0) return;
+
     if (app->selection_kind == SELECTION_NONE) {
-        app->selection_kind = SELECTION_WALL;
+        app->selection_kind = kind;
         app->selected_entities.length = 0;
     }
 
@@ -1122,7 +1184,9 @@ static void add_wall_to_selection(App *app, int x, int y) {
         da_append(&app->selected_walls, ((SelectedWall){x, y}));
     }
 
-    if (app->selected_walls.length == 1 || !app->editing_wall) {
+    if (app->selection_kind == SELECTION_SURFACE) {
+        if (app->selected_walls.length == 1) app->selected_asset = *cell;
+    } else if (app->selected_walls.length == 1 || !app->editing_wall) {
         load_wall_fields_into_editor(app, x, y);
     }
 }
@@ -1191,9 +1255,10 @@ static void prune_invalid_selection(App *app) {
         }
     }
 
+    WallMap *cell_map = selection_cell_map(app);
     for (size_t i = 0; i < app->selected_walls.length;) {
         SelectedWall wall = app->selected_walls.data[i];
-        int *cell = wall_map_cell(&app->map, wall.x, wall.y);
+        int *cell = wall_map_cell(cell_map, wall.x, wall.y);
         if (!cell || *cell < 0) {
             if (i + 1 < app->selected_walls.length) {
                 memmove(
@@ -1501,18 +1566,20 @@ static void delete_active_selection(App *app) {
         return;
     }
 
-    if (app->selection_kind == SELECTION_WALL) {
+    if (app->selection_kind == SELECTION_WALL || app->selection_kind == SELECTION_SURFACE) {
+        bool surface = app->selection_kind == SELECTION_SURFACE;
+        WallMap *map = selection_cell_map(app);
         size_t delete_count = 0;
         for (size_t i = 0; i < app->selected_walls.length; i++) {
             SelectedWall wall = app->selected_walls.data[i];
-            int *cell = wall_map_cell(&app->map, wall.x, wall.y);
+            int *cell = wall_map_cell(map, wall.x, wall.y);
             if (!cell || *cell < 0) continue;
             *cell = -1;
             delete_count++;
         }
 
         clear_edit_selection(app);
-        set_status(app, "Deleted %u walls", (unsigned int)delete_count);
+        set_status(app, "Deleted %u %s", (unsigned int)delete_count, surface ? "cells" : "walls");
     }
 }
 
@@ -1641,11 +1708,12 @@ static void apply_selected_asset_to_edit(App *app) {
             int entity_index = app->selected_entities.data[i];
             if (selected_entity_is_valid(app, entity_index)) app->entities.data[entity_index].asset_index = app->selected_asset;
         }
-    } else if (app->selection_kind == SELECTION_WALL && app->selected_walls.length > 0) {
+    } else if ((app->selection_kind == SELECTION_WALL || app->selection_kind == SELECTION_SURFACE) && app->selected_walls.length > 0) {
+        WallMap *map = selection_cell_map(app);
         for (size_t i = 0; i < app->selected_walls.length; i++) {
             SelectedWall wall = app->selected_walls.data[i];
-            int *cell = wall_map_cell(&app->map, wall.x, wall.y);
-            if (cell) *cell = app->selected_asset;
+            int *cell = wall_map_cell(map, wall.x, wall.y);
+            if (cell && *cell >= 0) *cell = app->selected_asset;
         }
     } else if (editing_entity_is_valid(app)) {
         app->entities.data[app->editing_entity].asset_index = app->selected_asset;
@@ -1814,6 +1882,12 @@ static void select_walls_inside_selection_rect(App *app) {
 }
 
 static void apply_shift_click_selection(App *app, Vector2 world, int cell_x, int cell_y) {
+    if (app->brush == BRUSH_SURFACE) {
+        int *cell = wall_map_cell(active_surface_map(app), cell_x, cell_y);
+        if (cell && *cell >= 0) toggle_wall_selection(app, cell_x, cell_y);
+        return;
+    }
+
     if (app->selection_kind == SELECTION_ENTITY || app->selection_kind == SELECTION_NONE) {
         int entity_index = nearest_entity_at(app, world, fmaxf(0.35f, 8.0f / app->camera.zoom));
         if (entity_index >= 0) {
@@ -1829,6 +1903,11 @@ static void apply_shift_click_selection(App *app, Vector2 world, int cell_x, int
 }
 
 static void apply_shift_rect_selection(App *app) {
+    if (app->brush == BRUSH_SURFACE) {
+        select_walls_inside_selection_rect(app);
+        return;
+    }
+
     Rectangle rect = normalized_world_rect(app->selection_drag_start, app->selection_drag_end);
 
     if (app->selection_kind == SELECTION_NONE) {
@@ -1857,6 +1936,11 @@ static void begin_shift_selection_drag(App *app, Vector2 world, int cell_x, int 
     app->selection_drag_end_y = cell_y;
 
     if (app->selection_kind == SELECTION_NONE) {
+        if (app->brush == BRUSH_SURFACE) {
+            int *cell = wall_map_cell(active_surface_map(app), cell_x, cell_y);
+            if (cell && *cell >= 0) app->selection_kind = SELECTION_SURFACE;
+            return;
+        }
         int entity_index = nearest_entity_at(app, world, fmaxf(0.35f, 8.0f / app->camera.zoom));
         if (entity_index >= 0) {
             app->selection_kind = SELECTION_ENTITY;
@@ -2167,6 +2251,22 @@ static void append_map_builder_state(String *out, const App *app) {
         }
     }
 
+    for (int y = 0; y < app->floor_map.rows; y++) {
+        for (int x = 0; x < app->floor_map.cols; x++) {
+            int asset_index = app->floor_map.data[y * app->floor_map.cols + x];
+            if (!asset_index_is_valid(app, asset_index)) continue;
+            str_appendf(out, "// floor %d %d %s\n", x, y, app->assets.data[asset_index].texture_symbol);
+        }
+    }
+
+    for (int y = 0; y < app->ceil_map.rows; y++) {
+        for (int x = 0; x < app->ceil_map.cols; x++) {
+            int asset_index = app->ceil_map.data[y * app->ceil_map.cols + x];
+            if (!asset_index_is_valid(app, asset_index)) continue;
+            str_appendf(out, "// ceil %d %d %s\n", x, y, app->assets.data[asset_index].texture_symbol);
+        }
+    }
+
     for (size_t i = 0; i < app->entities.length; i++) {
         const PlacedEntity *entity = &app->entities.data[i];
         str_appendf(
@@ -2200,7 +2300,11 @@ static void loaded_level_init(LoadedLevel *loaded) {
 }
 
 static void loaded_level_free(LoadedLevel *loaded) {
-    if (loaded->has_size) wall_map_free(&loaded->map);
+    if (loaded->has_size) {
+        wall_map_free(&loaded->map);
+        wall_map_free(&loaded->floor_map);
+        wall_map_free(&loaded->ceil_map);
+    }
     da_free(&loaded->entities);
     da_free(&loaded->collision_layers);
     da_free(&loaded->update_fns);
@@ -2294,8 +2398,14 @@ static bool parse_state_line(App *app, LoadedLevel *loaded, const char *payload,
     int rows = 0;
     if (sscanf(payload, "size %d %d", &cols, &rows) == 2) {
         if (cols < MIN_MAP_SIZE || rows < MIN_MAP_SIZE || cols > MAX_MAP_SIZE || rows > MAX_MAP_SIZE) return false;
-        if (loaded->has_size) wall_map_free(&loaded->map);
+        if (loaded->has_size) {
+            wall_map_free(&loaded->map);
+            wall_map_free(&loaded->floor_map);
+            wall_map_free(&loaded->ceil_map);
+        }
         wall_map_init(&loaded->map, cols, rows);
+        wall_map_init(&loaded->floor_map, cols, rows);
+        wall_map_init(&loaded->ceil_map, cols, rows);
         loaded->has_size = true;
         loaded->player_pos = (Vector2){(float)cols * 0.5f, (float)rows * 0.5f};
         return true;
@@ -2350,6 +2460,30 @@ static bool parse_state_line(App *app, LoadedLevel *loaded, const char *payload,
         return true;
     }
 
+    if (sscanf(payload, "floor %d %d %127s", &x, &y, texture_symbol) == 3) {
+        if (!loaded->has_size || !wall_map_inside(&loaded->floor_map, x, y)) return false;
+        int asset_index = asset_index_from_symbol(app, texture_symbol);
+        if (asset_index < 0) {
+            if (strcmp(texture_symbol, "NULL_ASSET") != 0 && strcmp(texture_symbol, "0") != 0) (*missing_assets)++;
+            return true;
+        }
+        int *cell = wall_map_cell(&loaded->floor_map, x, y);
+        if (cell) *cell = asset_index;
+        return true;
+    }
+
+    if (sscanf(payload, "ceil %d %d %127s", &x, &y, texture_symbol) == 3) {
+        if (!loaded->has_size || !wall_map_inside(&loaded->ceil_map, x, y)) return false;
+        int asset_index = asset_index_from_symbol(app, texture_symbol);
+        if (asset_index < 0) {
+            if (strcmp(texture_symbol, "NULL_ASSET") != 0 && strcmp(texture_symbol, "0") != 0) (*missing_assets)++;
+            return true;
+        }
+        int *cell = wall_map_cell(&loaded->ceil_map, x, y);
+        if (cell) *cell = asset_index;
+        return true;
+    }
+
     char entity_name[ENTITY_NAME_SIZE] = {0};
     char ignored_fn[64] = {0};
     char update_fn_buf[ENTITY_NAME_SIZE] = {0};
@@ -2394,15 +2528,21 @@ static bool parse_state_line(App *app, LoadedLevel *loaded, const char *payload,
 
 static void apply_loaded_level(App *app, LoadedLevel *loaded, Rectangle map_bounds) {
     wall_map_free(&app->map);
+    wall_map_free(&app->floor_map);
+    wall_map_free(&app->ceil_map);
     da_free(&app->entities);
     da_free(&app->collision_layers);
     da_free(&app->update_fns);
 
     app->map = loaded->map;
+    app->floor_map = loaded->floor_map;
+    app->ceil_map = loaded->ceil_map;
     app->entities = loaded->entities;
     app->collision_layers = loaded->collision_layers;
     app->update_fns = loaded->update_fns;
     loaded->map = (WallMap){0};
+    loaded->floor_map = (WallMap){0};
+    loaded->ceil_map = (WallMap){0};
     loaded->entities = (PlacedEntities){0};
     loaded->collision_layers = (CollisionLayers){0};
     loaded->update_fns = (UpdateFns){0};
@@ -2509,6 +2649,44 @@ cleanup:
     loaded_level_free(&loaded);
     da_free(&file);
     return ok;
+}
+
+static bool wall_map_has_any(const App *app, const WallMap *map) {
+    for (int i = 0; i < map->cols * map->rows; i++) {
+        if (asset_index_is_valid(app, map->data[i])) return true;
+    }
+    return false;
+}
+
+static void append_map_array_data(String *out, const App *app, const WallMap *map) {
+    for (int y = 0; y < map->rows; y++) {
+        str_append(out, "        ");
+        for (int x = 0; x < map->cols; x++) {
+            int asset_index = map->data[y * map->cols + x];
+            if (asset_index_is_valid(app, asset_index)) {
+                str_appendf(out, "%s", app->assets.data[asset_index].texture_symbol);
+            } else {
+                str_append(out, "0");
+            }
+            str_append(out, (x == map->cols - 1) ? "," : ", ");
+        }
+        str_append(out, "\n");
+    }
+}
+
+static void append_map_array_fn(String *out, const App *app, const char *fn_name, const WallMap *map) {
+    str_appendf(out, "static inline uint8_t *%s(void) {\n", fn_name);
+    str_append(out, "    static uint8_t data[YR_MAP_ROWS * YR_MAP_COLS] = {\n");
+    append_map_array_data(out, app, map);
+    str_append(out, "    };\n");
+    str_append(out, "    return data;\n");
+    str_append(out, "}\n\n");
+}
+
+static void append_map_array_var(String *out, const App *app, const char *var_name, const WallMap *map) {
+    str_appendf(out, "static uint8_t %s[YR_MAP_ROWS * YR_MAP_COLS] = {\n", var_name);
+    append_map_array_data(out, app, map);
+    str_append(out, "};\n\n");
 }
 
 static bool write_level_header(App *app) {
@@ -2653,28 +2831,20 @@ static bool write_level_header(App *app) {
     }
     str_append(&out, "}\n\n");
 
-    str_append(&out, "static inline uint8_t *level_get_map(void) {\n");
-    str_append(&out, "    static uint8_t data[YR_MAP_ROWS * YR_MAP_COLS] = {\n");
-    for (int y = 0; y < app->map.rows; y++) {
-        str_append(&out, "        ");
-        for (int x = 0; x < app->map.cols; x++) {
-            int asset_index = app->map.data[y * app->map.cols + x];
-            if (asset_index >= 0 && asset_index < (int)app->assets.length) {
-                str_appendf(&out, "%s", app->assets.data[asset_index].texture_symbol);
-            } else {
-                str_append(&out, "0");
-            }
-            str_append(&out, (x == app->map.cols - 1) ? "," : ", ");
-        }
-        str_append(&out, "\n");
-    }
-    str_append(&out, "    };\n");
-    str_append(&out, "    return data;\n");
-    str_append(&out, "}\n\n");
+    append_map_array_fn(&out, app, "level_get_map", &app->map);
+
+    bool has_floor_map = wall_map_has_any(app, &app->floor_map);
+    bool has_ceil_map = wall_map_has_any(app, &app->ceil_map);
+    if (has_floor_map) append_map_array_var(&out, app, "level_map_floor", &app->floor_map);
+    if (has_ceil_map) append_map_array_var(&out, app, "level_map_ceil", &app->ceil_map);
 
     str_append(&out, "static inline void load_level(YrGameState *state) {\n");
     str_append(&out, "    state->assets_map = assets_map;\n");
     str_append(&out, "    state->map = level_get_map();\n");
+    if (has_floor_map) str_append(&out, "    state->map_floor = level_map_floor;\n");
+    else str_append(&out, "    state->map_floor = NULL;\n");
+    if (has_ceil_map) str_append(&out, "    state->map_ceil = level_map_ceil;\n");
+    else str_append(&out, "    state->map_ceil = NULL;\n");
     str_append(&out, "    state->map_cols = YR_MAP_COLS;\n");
     str_append(&out, "    state->map_rows = YR_MAP_ROWS;\n");
     str_append(&out, "    state->floor_texture = YR_LEVEL_FLOOR;\n");
@@ -2803,6 +2973,11 @@ static void handle_map_input(App *app, Rectangle map_bounds) {
         app->wall_dragging = false;
         app->selection_dragging = false;
         app->selection_move_dragging = false;
+        if (app->brush == BRUSH_SURFACE) {
+            int *cell = wall_map_cell(active_surface_map(app), cell_x, cell_y);
+            if (cell) *cell = -1;
+            return;
+        }
         int entity_index = nearest_entity_at(app, world, fmaxf(0.25f, 8.0f / app->camera.zoom));
         if (entity_index >= 0) {
             da_remove_unordered(&app->entities, (size_t)entity_index);
@@ -2813,6 +2988,77 @@ static void handle_map_input(App *app, Rectangle map_bounds) {
         int *cell = wall_map_cell(&app->map, cell_x, cell_y);
         if (cell) *cell = -1;
         clear_edit_selection(app);
+        return;
+    }
+
+    if (app->brush == BRUSH_SURFACE) {
+        // Shift-drag / shift-click selects cells of the active surface (floor or ceil),
+        // mirroring wall selection, so they can be deleted or retextured in bulk.
+        if (app->selection_dragging) {
+            app->selection_drag_end = world;
+            app->selection_drag_end_x = cell_x;
+            app->selection_drag_end_y = cell_y;
+            if (fabsf(app->selection_drag_end.x - app->selection_drag_start.x) > 0.05f ||
+                fabsf(app->selection_drag_end.y - app->selection_drag_start.y) > 0.05f) {
+                app->selection_drag_moved = true;
+            }
+            if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
+                if (app->selection_drag_moved) apply_shift_rect_selection(app);
+                else apply_shift_click_selection(app, app->selection_drag_start, app->selection_drag_start_x, app->selection_drag_start_y);
+                app->selection_dragging = false;
+                app->selection_drag_moved = false;
+                prune_invalid_selection(app);
+                if (app->selected_walls.length > 0) set_status(app, "Selected %u cells", (unsigned int)app->selected_walls.length);
+            }
+            return;
+        }
+
+        if (shift && IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && mouse_in_map) {
+            begin_shift_selection_drag(app, world, cell_x, cell_y);
+            return;
+        }
+
+        // A plain click while cells are selected clears the selection instead of painting.
+        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && mouse_in_map && selection_has_items(app)) {
+            clear_edit_selection(app);
+            app->suppress_left_drag = true;
+            return;
+        }
+
+        if (!selected_wall_asset_is_valid(app)) {
+            if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) set_status(app, "Select a texture first");
+            return;
+        }
+
+        if (app->wall_mode == WALL_POINT) {
+            if (IsMouseButtonDown(MOUSE_BUTTON_LEFT) && mouse_in_map) {
+                int *cell = wall_map_cell(active_surface_map(app), cell_x, cell_y);
+                if (cell) *cell = app->selected_asset;
+            }
+            return;
+        }
+
+        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && mouse_in_map) {
+            app->wall_dragging = true;
+            app->wall_drag_moved = false;
+            app->wall_drag_start_x = cell_x;
+            app->wall_drag_start_y = cell_y;
+            app->wall_drag_end_x = cell_x;
+            app->wall_drag_end_y = cell_y;
+            return;
+        }
+
+        if (app->wall_dragging) {
+            app->wall_drag_end_x = cell_x;
+            app->wall_drag_end_y = cell_y;
+            if (app->wall_drag_end_x != app->wall_drag_start_x || app->wall_drag_end_y != app->wall_drag_start_y) {
+                app->wall_drag_moved = true;
+            }
+            if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
+                apply_surface_drag(app);
+                app->wall_dragging = false;
+            }
+        }
         return;
     }
 
@@ -2945,6 +3191,27 @@ static void draw_map(App *app, Rectangle map_bounds) {
 
     DrawRectangleRec((Rectangle){0.0f, 0.0f, (float)app->map.cols, (float)app->map.rows}, (Color){37, 39, 44, 255});
 
+    // Surface (floor/ceil) underlay. In Floor/Ceil mode the edited surface is opaque;
+    // elsewhere only the floor is shown, faintly, as a reference. Ceil is only ever
+    // visible while editing it (Floor/Ceil mode with the ceil target selected).
+    {
+        bool surface_mode = app->brush == BRUSH_SURFACE;
+        bool show_ceil = surface_mode && app->surface_target == SURFACE_CEIL;
+        const WallMap *smap = show_ceil ? &app->ceil_map : &app->floor_map;
+        int general = show_ceil ? app->ceil_asset : app->floor_asset;
+        for (int y = 0; y < smap->rows; y++) {
+            for (int x = 0; x < smap->cols; x++) {
+                int per_cell = smap->data[y * smap->cols + x];
+                int tex = per_cell >= 0 ? per_cell : general;
+                if (!asset_index_is_valid(app, tex)) continue;
+                unsigned char alpha;
+                if (surface_mode) alpha = per_cell >= 0 ? 255 : 90;
+                else alpha = per_cell >= 0 ? 130 : 70;
+                draw_texture_preview(&app->assets.data[tex], (Rectangle){(float)x, (float)y, 1.0f, 1.0f}, (Color){255, 255, 255, alpha});
+            }
+        }
+    }
+
     for (int y = 0; y < app->map.rows; y++) {
         for (int x = 0; x < app->map.cols; x++) {
             int asset_index = app->map.data[y * app->map.cols + x];
@@ -2979,6 +3246,7 @@ static void draw_map(App *app, Rectangle map_bounds) {
             int min_y = app->wall_drag_start_y < app->wall_drag_end_y ? app->wall_drag_start_y : app->wall_drag_end_y;
             int max_y = app->wall_drag_start_y > app->wall_drag_end_y ? app->wall_drag_start_y : app->wall_drag_end_y;
             Rectangle preview = {(float)min_x, (float)min_y, (float)(max_x - min_x + 1), (float)(max_y - min_y + 1)};
+            if (app->brush == BRUSH_SURFACE) DrawRectangleRec(preview, (Color){120, 220, 160, 70});
             DrawRectangleLinesEx(preview, line_width * 4.0f, (Color){80, 180, 255, 230});
         }
     }
@@ -3012,14 +3280,17 @@ static void draw_map(App *app, Rectangle map_bounds) {
         Asset *asset = NULL;
         if (entity->asset_index >= 0 && entity->asset_index < (int)app->assets.length) asset = &app->assets.data[entity->asset_index];
 
+        bool surface_mode = app->brush == BRUSH_SURFACE;
         Rectangle dst = {entity->pos.x - 0.35f, entity->pos.y - 0.35f, 0.7f, 0.7f};
-        draw_texture_preview(asset, dst, entity->disabled ? (Color){255, 255, 255, 96} : WHITE);
+        unsigned char fill_alpha = surface_mode ? (entity->disabled ? 48 : 110) : (entity->disabled ? 96 : 255);
+        draw_texture_preview(asset, dst, (Color){255, 255, 255, fill_alpha});
         Color border = entity->disabled ? (Color){255, 120, 120, 200} : (Color){255, 226, 96, 230};
         float border_width = line_width * 2.0f;
         if (entity_is_selected(app, (int)i) || (int)i == app->editing_entity) {
             border = (Color){80, 180, 255, 255};
             border_width = line_width * 4.0f;
         }
+        if (surface_mode) border.a = (unsigned char)(border.a / 2);
         DrawRectangleLinesEx(dst, border_width, border);
     }
 
@@ -3040,6 +3311,8 @@ static void draw_map(App *app, Rectangle map_bounds) {
         if (world.x >= 0.0f && world.y >= 0.0f && world.x < (float)app->map.cols && world.y < (float)app->map.rows) {
             if (app->brush == BRUSH_WALL) {
                 DrawRectangleLinesEx((Rectangle){floorf(world.x), floorf(world.y), 1.0f, 1.0f}, line_width * 3.0f, (Color){80, 180, 255, 230});
+            } else if (app->brush == BRUSH_SURFACE) {
+                DrawRectangleLinesEx((Rectangle){floorf(world.x), floorf(world.y), 1.0f, 1.0f}, line_width * 3.0f, (Color){120, 220, 160, 230});
             } else if (app->brush == BRUSH_ENTITY) {
                 DrawCircleV(world, 0.14f, (Color){80, 180, 255, 230});
                 DrawCircleLinesV(world, 0.35f, (Color){80, 180, 255, 230});
@@ -3055,7 +3328,7 @@ static void draw_map(App *app, Rectangle map_bounds) {
     if (CheckCollisionPointRec(mouse, map_bounds)) {
         Vector2 world = GetScreenToWorld2D(mouse, app->camera);
         char coords[96];
-        if (app->brush == BRUSH_WALL) {
+        if (app->brush == BRUSH_WALL || app->brush == BRUSH_SURFACE) {
             snprintf(coords, sizeof(coords), "cell %d,%d", (int)floorf(world.x), (int)floorf(world.y));
         } else if (app->brush == BRUSH_PLAYER) {
             snprintf(coords, sizeof(coords), "player %.2f,%.2f", world.x, world.y);
@@ -3143,7 +3416,45 @@ static void draw_surface_asset_row(App *app, float x, float y, float w, const ch
 }
 
 static void draw_floor_ceil_section(App *app, float x, float *y, float w) {
-    GuiLabel((Rectangle){x, *y, w, 20.0f}, "Floor / ceil");
+    float gap = 8.0f;
+    float half_w = (w - gap) * 0.5f;
+    Vector2 mouse = GetMousePosition();
+
+    GuiLabel((Rectangle){x, *y, w, 20.0f}, "Draw target");
+    *y += 22.0f;
+    Rectangle floor_toggle = {x, *y, half_w, 26.0f};
+    Rectangle ceil_toggle = {x + half_w + gap, *y, half_w, 26.0f};
+    if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
+        SurfaceTarget prev_target = app->surface_target;
+        if (CheckCollisionPointRec(mouse, floor_toggle)) app->surface_target = SURFACE_FLOOR;
+        else if (CheckCollisionPointRec(mouse, ceil_toggle)) app->surface_target = SURFACE_CEIL;
+        if (app->surface_target != prev_target) clear_edit_selection(app);
+    }
+    bool floor_active = app->surface_target == SURFACE_FLOOR;
+    bool ceil_active = app->surface_target == SURFACE_CEIL;
+    GuiLock();
+    GuiToggle(floor_toggle, "Floor", &floor_active);
+    GuiToggle(ceil_toggle, "Ceil", &ceil_active);
+    GuiUnlock();
+    *y += 32.0f;
+
+    GuiLabel((Rectangle){x, *y, w, 20.0f}, "Insert");
+    *y += 22.0f;
+    Rectangle point_toggle = {x, *y, half_w, 24.0f};
+    Rectangle rect_toggle = {x + half_w + gap, *y, half_w, 24.0f};
+    if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
+        if (CheckCollisionPointRec(mouse, point_toggle)) app->wall_mode = WALL_POINT;
+        else if (CheckCollisionPointRec(mouse, rect_toggle)) app->wall_mode = WALL_RECT;
+    }
+    bool point_active = app->wall_mode == WALL_POINT;
+    bool rect_active = app->wall_mode != WALL_POINT;
+    GuiLock();
+    GuiToggle(point_toggle, "Point", &point_active);
+    GuiToggle(rect_toggle, "Rect", &rect_active);
+    GuiUnlock();
+    *y += 34.0f;
+
+    GuiLabel((Rectangle){x, *y, w, 20.0f}, "General textures");
     *y += 24.0f;
 
     draw_surface_asset_row(app, x, *y, w, "Floor", &app->floor_asset);
@@ -3552,7 +3863,10 @@ static void init_app(App *app, const char *asset_dir, const char *output_path) {
     app->player_collision_mask = UINT32_MAX;
     refresh_player_text(app);
 
+    app->surface_target = SURFACE_FLOOR;
     wall_map_init(&app->map, DEFAULT_MAP_COLS, DEFAULT_MAP_ROWS);
+    wall_map_init(&app->floor_map, DEFAULT_MAP_COLS, DEFAULT_MAP_ROWS);
+    wall_map_init(&app->ceil_map, DEFAULT_MAP_COLS, DEFAULT_MAP_ROWS);
     scan_assets(&app->assets, asset_dir);
 }
 
@@ -3606,6 +3920,8 @@ int main(int argc, char **argv) {
 
     free_assets(&app.assets);
     wall_map_free(&app.map);
+    wall_map_free(&app.floor_map);
+    wall_map_free(&app.ceil_map);
     da_free(&app.entities);
     da_free(&app.selected_entities);
     da_free(&app.selected_walls);

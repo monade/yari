@@ -50,6 +50,14 @@ static inline void yr_draw_texture_column(
     }
 }
 
+/**
+ * Performs raycasting for a single vertical slice of the screen to find wall intersections and render them.
+ * Uses DDA algorithm to step through the grid map and find the first wall hit by the ray.
+ * It also applies distance-based brightness to the wall slice.
+ * @param state The current game state containing camera, map, and rendering information.
+ * @param dir The direction vector of the ray being cast.
+ * @param slice_x The x-coordinate of the vertical slice on the screen to render.
+ */
 void yr_raycast_walls(YrGameState *state, Vector2 dir, int slice_x) {
     YrCamera *p = &state->camera;
     float v_shift_base = p->horizon * state->screen_height * 0.5f;
@@ -66,23 +74,28 @@ void yr_raycast_walls(YrGameState *state, Vector2 dir, int slice_x) {
     float abs_dir_y = dir.y < 0.0f ? -dir.y : dir.y;
     float delta_dist_x = 1.0f / abs_dir_x;
     float delta_dist_y = 1.0f / abs_dir_y;
-    float dist_x;
-    float dist_y;
+    float dist_x; // distance from the ray's origin to the next vertical grid line
+    float dist_y; // distance from the ray's origin to the next horizontal grid line
     int step_x;
     int step_y;
 
+    // Determine the step direction and initial distances to the next grid lines based on the ray's direction.
     if (dir.x < 0.0f) {
+        // If the ray is pointing left, step_x is -1 and dist_x is the distance to the left grid line.
         step_x = -1;
         dist_x = (p->pos.x - (float)cell_x) * delta_dist_x;
     } else {
+        // If the ray is pointing right, step_x is 1 and dist_x is the distance to the right grid line.
         step_x = 1;
         dist_x = ((float)cell_x + 1.0f - p->pos.x) * delta_dist_x;
     }
 
     if (dir.y < 0.0f) {
+        // If the ray is pointing up, step_y is -1 and dist_y is the distance to the upper grid line.
         step_y = -1;
         dist_y = (p->pos.y - (float)cell_y) * delta_dist_y;
     } else {
+        // If the ray is pointing down, step_y is 1 and dist_y is the distance to the lower grid line.
         step_y = 1;
         dist_y = ((float)cell_y + 1.0f - p->pos.y) * delta_dist_y;
     }
@@ -91,6 +104,7 @@ void yr_raycast_walls(YrGameState *state, Vector2 dir, int slice_x) {
     bool hit_vertical = false;
 
     while (ray_dist <= YR_MAX_RENDER_DIST) {
+        // calculate the next grid cell the ray will intersect
         if (dist_x < dist_y) {
             cell_x += step_x;
             ray_dist = dist_x;
@@ -108,23 +122,25 @@ void yr_raycast_walls(YrGameState *state, Vector2 dir, int slice_x) {
         }
 
         uint8_t map_cell = state->map[cell_y * state->map_cols + cell_x];
-        if (!map_cell) continue;
+        if (!map_cell) continue; // empty cell, keep raycasting
 
         float dist = ray_dist;
         if (dist < THRESHOLD) dist = THRESHOLD;
-        if (dist > YR_MAX_RENDER_DIST) break;
+        if (dist > YR_MAX_RENDER_DIST) break; // stop if the distance exceeds the maximum render distance
 
-        state->zbuffer[z_index] = dist;
+        state->zbuffer[z_index] = dist; // store distance in z-buffer for sprite rendering
         int h = (int)((float)state->screen_width / dist);
         float bright_factor = 1.0f / dist - 0.9f;
         if (bright_factor > 0.0f) bright_factor = 0.0f;
 
+        // If the map cell is a special color-coded cell (>= 128), draw a solid color rectangle instead of a texture.
         if (map_cell >= 128) {
             yr_pixel_t c = yr_color_brightness(yr_color_map[map_cell - 128], bright_factor);
             yr_draw_rectangle(slice_x, (state->screen_height - h) / 2 + v_shift, state->ray_res, h, c);
             return;
         }
 
+        // If the map cell corresponds to a texture, calculate the appropriate texture coordinates and draw the textured column.
         const yr_pixel_t *tex = state->assets_map[map_cell];
         Vector2 rs = {
             .x = p->pos.x + dir.x * ray_dist,
@@ -159,6 +175,10 @@ void yr_raycast_walls(YrGameState *state, Vector2 dir, int slice_x) {
     state->zbuffer[z_index] = YR_MAX_RENDER_DIST;
 }
 
+/**
+ * Renders the walls of the scene by performing raycasting for each vertical slice of the screen.
+ * This function iterates over the screen width, casting rays and drawing the corresponding wall slices.
+ */
 void yr_draw_walls(YrGameState *state) {
     YrCamera *p = &state->camera;
     static float scale = 0.0f;
@@ -179,6 +199,12 @@ void yr_draw_walls(YrGameState *state) {
 }
 
 
+/**
+ * Renders the background (floor and ceiling) of the scene using a raycasting approach.
+ * For each vertical slice of the screen, it calculates the corresponding floor and ceiling texture coordinates and draws the textured columns. 
+ * It also applies distance-based brightness to create a sense of depth.
+ * If no floor or ceiling texture is provided, it fills the respective areas with a solid color (black).
+ */
 void yr_draw_background(YrGameState *state) {
     YrCamera *p = &state->camera;
     static float scale = 0.0f;
@@ -187,8 +213,7 @@ void yr_draw_background(YrGameState *state) {
     Vector2 r0 = { .x = p->dir.x - plane.x, .y = p->dir.y - plane.y };
     Vector2 r1 = { .x = p->dir.x + plane.x, .y = p->dir.y + plane.y };
 
-    float ray_dx = r1.x - r0.x;
-    float ray_dy = r1.y - r0.y;
+    Vector2 ray_dir = Vector2Subtract(r1, r0);
     float inv_sw = 1.0f / (float)state->screen_width;
     int sw = state->screen_width;
     int sh = state->screen_height;
@@ -210,21 +235,29 @@ void yr_draw_background(YrGameState *state) {
         if (hz < 0) hz = 0;
         if (hz > sh) hz = sh;
 
-        float base_x = r0.x + ray_dx * (float)x * inv_sw;
-        float base_y = r0.y + ray_dy * (float)x * inv_sw;
+        // Calculate the base ray direction for the current vertical slice
+        Vector2 base_ray = Vector2Add(r0, Vector2Scale(ray_dir, (float)x * inv_sw));
 
         if (ceil_tex) {
             for (int y = 0; y < hz; y += rr) {
-                float row_dist = h_cam / (float)(hz - y);
+                float row_dist = h_cam / (float)(hz - y); // distance from the camera to the point on the ceiling corresponding to this pixel row
                 if (row_dist >= YR_MAX_RENDER_DIST) {
                     yr_draw_rectangle(x, y, rr, rr, YR_BLACK);
                     continue;
                 }
                 float brightness = -(row_dist / YR_MAX_RENDER_DIST);
-                float wx = p->pos.x + base_x * row_dist;
-                float wy = p->pos.y + base_y * row_dist;
-                int tx = ((int)(wx * (float)YR_TEXTURE_SIZE)) & (YR_TEXTURE_SIZE - 1);
-                int ty = ((int)(wy * (float)YR_TEXTURE_SIZE)) & (YR_TEXTURE_SIZE - 1);
+                Vector2 w = Vector2Add(p->pos, Vector2Scale(base_ray, row_dist)); // world coordinates of the point on the ceiling corresponding to this pixel row
+                if (state->map_ceil) {
+                    int cell_x = (int)w.x;
+                    int cell_y = (int)w.y;
+                    if(cell_x >= 0 && cell_x < state->map_cols && cell_y >= 0 && cell_y < state->map_rows && state->map_ceil[cell_y * state->map_cols + cell_x]) {
+                        ceil_tex = state->assets_map[state->map_ceil[cell_y * state->map_cols + cell_x]];
+                    } else {
+                        ceil_tex = state->assets_map[state->ceil_texture];
+                    }
+                }
+                int tx = ((int)(w.x * (float)YR_TEXTURE_SIZE)) & (YR_TEXTURE_SIZE - 1);
+                int ty = ((int)(w.y * (float)YR_TEXTURE_SIZE)) & (YR_TEXTURE_SIZE - 1);
                 yr_pixel_t c = yr_color_brightness(ceil_tex[ty * YR_TEXTURE_SIZE + tx], brightness);
                 yr_draw_rectangle(x, y, rr, rr, c);
             }
@@ -234,16 +267,24 @@ void yr_draw_background(YrGameState *state) {
 
         if (floor_tex) {
             for (int y = hz; y < sh; y += rr) {
-                float row_dist = h_cam / (float)(y - hz + 1);
+                float row_dist = h_cam / (float)(y - hz + 1); // distance from the camera to the point on the floor corresponding to this pixel row
                 if (row_dist >= YR_MAX_RENDER_DIST) {
                     yr_draw_rectangle(x, y, rr, rr, YR_BLACK);
                     continue;
                 }
                 float brightness = -(row_dist / YR_MAX_RENDER_DIST);
-                float wx = p->pos.x + base_x * row_dist;
-                float wy = p->pos.y + base_y * row_dist;
-                int tx = ((int)(wx * (float)YR_TEXTURE_SIZE)) & (YR_TEXTURE_SIZE - 1);
-                int ty = ((int)(wy * (float)YR_TEXTURE_SIZE)) & (YR_TEXTURE_SIZE - 1);
+                Vector2 w = Vector2Add(p->pos, Vector2Scale(base_ray, row_dist)); // world coordinates of the point on the floor corresponding to this pixel row
+                if (state->map_floor && w.x >= 0 && (int)w.x < state->map_cols && w.y >= 0 && (int)w.y < state->map_rows) {
+                    int cell_x = (int)w.x;
+                    int cell_y = (int)w.y;
+                    if(cell_x >= 0 && cell_x < state->map_cols && cell_y >= 0 && cell_y < state->map_rows && state->map_floor[cell_y * state->map_cols + cell_x]) {
+                        floor_tex = state->assets_map[state->map_floor[cell_y * state->map_cols + cell_x]];
+                    } else {
+                        floor_tex = state->assets_map[state->floor_texture];
+                    }
+                }
+                int tx = ((int)(w.x * (float)YR_TEXTURE_SIZE)) & (YR_TEXTURE_SIZE - 1);
+                int ty = ((int)(w.y * (float)YR_TEXTURE_SIZE)) & (YR_TEXTURE_SIZE - 1);
                 yr_pixel_t c = yr_color_brightness(floor_tex[ty * YR_TEXTURE_SIZE + tx], brightness);
                 yr_draw_rectangle(x, y, rr, rr, c);
             }
@@ -253,17 +294,25 @@ void yr_draw_background(YrGameState *state) {
     }
 }
 
+/**
+ * Renders the entities (sprites) in the scene. It first calculates the distance of each entity from the camera, sorts them by distance, and then renders them in back-to-front order to ensure proper occlusion. 
+ * For each entity, it calculates the appropriate screen position and size based on its distance and renders it using its associated texture. 
+ * It also applies distance-based brightness to create a sense of depth.
+ */
 void yr_draw_entities(YrGameState *state) {
     YrCamera *p = &state->camera;
+    // Update entity distances
     for (size_t i = 0; i < state->entities.length; i++) {
         if (state->entities.data[i].disabled) continue;
         state->entities.data[i].dist = Vector2Length(Vector2Subtract(state->entities.data[i].pos, p->pos));
     }
+    // Update entities (call their update functions)
     for (size_t i = 0; i < state->entities.length; i++) {
         if (state->entities.data[i].disabled || state->entities.data[i].update == NULL) continue;
         state->entities.data[i].update(state, &state->entities.data[i], i);
     }
 
+    // Sort entities by distance from the camera in descending order (farthest first) for proper rendering.
     qsort(state->entities.data, state->entities.length, sizeof(YrEntity), compare_sprite_dist);
 
     float half_screen = state->screen_width * 0.5f;
@@ -277,6 +326,11 @@ void yr_draw_entities(YrGameState *state) {
         if (state->entities.data[i].disabled) continue;
         YrEntity sprite = state->entities.data[i];
 
+        /**
+         * Calculate the position of the sprite on the screen using an inverse camera transformation.
+         * This involves translating the sprite's world position relative to the camera, applying the inverse of the camera's rotation and projection to determine where it should appear on the screen.
+         * The resulting screen coordinates are then used to determine the size and position of the sprite's texture on the screen, as well as its brightness based on distance from the camera.
+         */
         Vector2 rel = Vector2Subtract(sprite.pos, p->pos);
         Vector2 transform = {
             .x = p->dir.y * rel.x - p->dir.x * rel.y,
@@ -312,6 +366,7 @@ void yr_draw_entities(YrGameState *state) {
 
         const yr_pixel_t *tex = state->assets_map[sprite.texture_id];
 
+        // Render the sprite column by column, applying distance-based brightness and checking against the z-buffer for proper occlusion with walls.
         for (int x = drawStartX; x < drawEndX; x += state->ray_res) {
             int texX = (x - spriteLeft) * YR_TEXTURE_SIZE / spriteWidth;
             if (texX < 0) texX = 0;
