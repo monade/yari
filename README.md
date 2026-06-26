@@ -125,7 +125,7 @@ make run-sdl
 ```
 
 `make run` builds the raylib backend. `make run-sdl` builds the SDL2 backend.
-Both start the complete example in `example/game/main/main.c`.
+Both start the complete example in `example/fps/main/main.c`.
 
 ### WebAssembly
 
@@ -324,7 +324,7 @@ Source assets are converted into static C arrays by `assets_packer`.
 
 ```sh
 make assets
-# it runs build/assets_packer example/game/assets example/game/main/assets.h
+# it runs build/assets_packer example/fps/assets example/fps/main/assets.h
 ```
 
 `assets_packer`:
@@ -343,11 +343,11 @@ Use simple C-friendly file names, for example `wal_001.png`, `wep_gun0.png` or
 ### Fonts
 
 `.ttf` files under `assets/font/` are baked into
-`example/game/main/fonts.h`:
+`example/fps/main/fonts.h`:
 
 ```sh
 make assets
-# it runs build/font_baker example/game/assets/font example/game/main/fonts.h
+# it runs build/font_baker example/fps/assets/font example/fps/main/fonts.h
 ```
 
 - reads `.ttf` files from the directory passed as the first argument;
@@ -386,7 +386,7 @@ make map-builder
 `make run-map-builder` builds the tool and runs:
 
 ```sh
-build/map_builder assets example/game/main/level.h
+build/map_builder assets example/fps/main/level.h
 ```
 
 The executable accepts optional paths:
@@ -472,17 +472,17 @@ Main editor modes:
 
 | Command | Effect |
 | --- | --- |
-| `make run` | builds and runs `example/game` with raylib on desktop |
-| `make run-sdl` | builds and runs `example/game` with SDL2 on desktop |
+| `make run` | builds and runs `example/fps` with raylib on desktop |
+| `make run-sdl` | builds and runs `example/fps` with SDL2 on desktop |
 | `make run-base` | builds and runs the minimal example |
 | `make assets` | regenerates `assets.h` and `fonts.h` |
 | `make run-map-builder` | builds and runs the map editor |
-| `make run-wasm` | builds and serves the WebAssembly `example/game` |
-| `make esp32-build` | builds `example/game` with ESP-IDF |
-| `make esp32-flash` | builds and flashes `example/game` |
+| `make run-wasm` | builds and serves the WebAssembly `example/fps` |
+| `make esp32-build` | builds `example/fps` with ESP-IDF |
+| `make esp32-flash` | builds and flashes `example/fps` |
 | `make esp32-monitor` | opens the serial monitor |
 | `make esp32-flash-monitor` | flashes and opens the serial monitor |
-| `make esp32-clean` | runs `idf.py fullclean` in `example/game` |
+| `make esp32-clean` | runs `idf.py fullclean` in `example/fps` |
 | `make esp32-base-build` | builds `example/base` for ESP32 |
 | `make esp32-base-flash-monitor` | flashes and monitors the base example |
 
@@ -580,7 +580,7 @@ the engine contract without the asset pipeline.
 make run-base
 ```
 
-### `example/game`
+### `example/fps`
 
 A complete example with:
 

@@ -20,8 +20,8 @@ RAYLIB_WEB_YARI_OBJS = \
 	build/renderer_common_web.o \
 	build/inputs_web.o
 RAYLIB_WEB_DEPS = \
-	example/game/main/assets.h \
-	example/game/main/level.h \
+	example/fps/main/assets.h \
+	example/fps/main/level.h \
 	src/yari/colors.h \
 	src/yari/inputs.h \
 	src/yari/physics.h \
@@ -100,14 +100,14 @@ build/font_baker: src/tools/font_baker.c
 	$(CC) -o build/font_baker src/tools/font_baker.c -lm
 
 assets: build/assets_packer build/font_baker
-	build/assets_packer assets example/game/main/assets.h
-	build/font_baker assets/font example/game/main/fonts.h
+	build/assets_packer example/fps/assets example/fps/main/assets.h
+	build/font_baker example/fps/assets/font example/fps/main/fonts.h
 
 build/map_builder: src/tools/map_builder.c src/tools/raygui.h
 	$(CC) -Wall -Wextra -O2 $(RAYLIB_CFLAGS) -I./src/tools -o build/map_builder src/tools/map_builder.c $(RAYLIB_LIBS)
 map-builder: build/map_builder
 run-map-builder: map-builder
-	build/map_builder assets example/game/main/level.h
+	build/map_builder assets example/fps/main/level.h
 
 # Examples
 
@@ -125,8 +125,8 @@ run-base: ray-base
 	build/ray-base
 
 ### game example
-build/ray: assets build/yari/libyari_raylib.a example/game/main/main.c
-	$(CC) $(MAIN_CFLAGS) -o build/ray example/game/main/main.c $(MAIN_LIBS) $(RAYLIB_LIBS)
+build/ray: assets build/yari/libyari_raylib.a example/fps/main/main.c
+	$(CC) $(MAIN_CFLAGS) -o build/ray example/fps/main/main.c $(MAIN_LIBS) $(RAYLIB_LIBS)
 
 .PHONY: ray run
 ray: build/ray
@@ -134,8 +134,8 @@ run: ray
 	build/ray
 
 ### SDL2 game example
-build/sdl: assets build/yari/libyari_sdl.a example/game/main/main.c
-	$(CC) $(MAIN_CFLAGS) -o build/sdl example/game/main/main.c $(SDL_MAIN_LIBS) $(SDL2_LIBS)
+build/sdl: assets build/yari/libyari_sdl.a example/fps/main/main.c
+	$(CC) $(MAIN_CFLAGS) -o build/sdl example/fps/main/main.c $(SDL_MAIN_LIBS) $(SDL2_LIBS)
 
 .PHONY: sdl run-sdl
 sdl: build/sdl
@@ -154,9 +154,9 @@ $(RAYLIB_WEB_STAMP): | $(RAYLIB_WEB_PATH)
 	$(MAKE) -C $(RAYLIB_WEB_PATH)/src PLATFORM=PLATFORM_WEB -B
 	@touch $@
 
-$(RAYLIB_WEB_OUTPUT): $(RAYLIB_WEB_DEPS) $(RAYLIB_WEB_STAMP) $(RAYLIB_WEB_YARI_LIB) example/game/main/main.c
+$(RAYLIB_WEB_OUTPUT): $(RAYLIB_WEB_DEPS) $(RAYLIB_WEB_STAMP) $(RAYLIB_WEB_YARI_LIB) example/fps/main/main.c
 	$(EMCC) $(RAYLIB_WEB_CFLAGS) -o $(RAYLIB_WEB_OUTPUT) \
-		example/game/main/main.c \
+		example/fps/main/main.c \
 		$(RAYLIB_WEB_YARI_LIB) $(RAYLIB_WEB_LIB) $(RAYLIB_WEB_LDFLAGS) -lm
 
 .PHONY: wasm run-wasm
@@ -187,16 +187,16 @@ esp32-base-clean:
 ### game example
 .PHONY: esp32-build esp32-flash esp32-monitor esp32-flash-monitor esp32-clean
 esp32-build: assets
-	cd example/game && . $(ESP32_HOME)/export.sh && idf.py build && idf.py size
+	cd example/fps && . $(ESP32_HOME)/export.sh && idf.py build && idf.py size
 
 esp32-flash: esp32-build
-	cd example/game && . $(ESP32_HOME)/export.sh && idf.py flash
+	cd example/fps && . $(ESP32_HOME)/export.sh && idf.py flash
 
 esp32-monitor:
-	cd example/game && . $(ESP32_HOME)/export.sh && idf.py monitor
+	cd example/fps && . $(ESP32_HOME)/export.sh && idf.py monitor
 
 esp32-flash-monitor: esp32-flash
-	cd example/game && . $(ESP32_HOME)/export.sh && idf.py monitor
+	cd example/fps && . $(ESP32_HOME)/export.sh && idf.py monitor
 
 esp32-clean:
-	cd example/game && . $(ESP32_HOME)/export.sh && idf.py fullclean
+	cd example/fps && . $(ESP32_HOME)/export.sh && idf.py fullclean
