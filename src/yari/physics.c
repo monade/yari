@@ -89,7 +89,7 @@ static YrCollisionInfo check_wall_ray_collision(YrGameState *state, Vector2 orig
     return (YrCollisionInfo){0};
 }
 
-YrCollisionInfo yr_check_collision(YrGameState *state, Vector2 next_pos, float threshold, uint32_t collision_mask) {
+YrCollisionInfo yr_check_collision_with_radius(YrGameState *state, Vector2 next_pos, float threshold, uint32_t collision_mask, float radius) {
     YrCollisionInfo info = {0};
 
     // entities
@@ -99,7 +99,7 @@ YrCollisionInfo yr_check_collision(YrGameState *state, Vector2 next_pos, float t
             if (sprite->disabled) continue;
             if (!(sprite->collision_mask & collision_mask)) continue;
             float dist = Vector2Distance(next_pos, sprite->pos);
-            if (dist < sprite->collision_threshold + threshold) {
+            if (dist < sprite->collision_threshold + threshold && dist > radius) {
                 info.type = YR_COLLISION_ENTITY;
                 info.entity = sprite;
                 info.entity_index = i;
@@ -123,6 +123,10 @@ YrCollisionInfo yr_check_collision(YrGameState *state, Vector2 next_pos, float t
         }
     }
     return info;
+}
+
+YrCollisionInfo yr_check_collision(YrGameState *state, Vector2 next_pos, float threshold, uint32_t collision_mask) {
+    return yr_check_collision_with_radius(state, next_pos, threshold, collision_mask, 0);
 }
 
 YrCollisionInfo yr_check_ray_collision(YrGameState *state, Vector2 origin, Vector2 dir, float threshold, uint32_t collision_mask) {
@@ -183,16 +187,20 @@ YrCollisionInfo yr_check_ray_collision(YrGameState *state, Vector2 origin, Vecto
 }
 
 Vector2 yr_slide_collision(YrGameState *state, Vector2 from, Vector2 to, YrCollisionInfo *hit, float threshold, uint32_t collision_mask) {
-    YrCollisionInfo info = yr_check_collision(state, to, threshold, collision_mask);
+    return yr_slide_collision_with_radius(state, from, to, hit, threshold, collision_mask, 0);
+}
+
+Vector2 yr_slide_collision_with_radius(YrGameState *state, Vector2 from, Vector2 to, YrCollisionInfo *hit, float threshold, uint32_t collision_mask, float radius) {
+    YrCollisionInfo info = yr_check_collision_with_radius(state, to, threshold, collision_mask, radius);
     if (hit) *hit = info;
     if (info.type == YR_COLLISION_NONE) return to;
 
     Vector2 slide_x = { to.x, from.y };
-    if (yr_check_collision(state, slide_x, threshold, collision_mask).type == YR_COLLISION_NONE) {
+    if (yr_check_collision_with_radius(state, slide_x, threshold, collision_mask, radius).type == YR_COLLISION_NONE) {
         return slide_x;
     }
     Vector2 slide_y = { from.x, to.y };
-    if (yr_check_collision(state, slide_y, threshold, collision_mask).type == YR_COLLISION_NONE) {
+    if (yr_check_collision_with_radius(state, slide_y, threshold, collision_mask, radius).type == YR_COLLISION_NONE) {
         return slide_y;
     }
     return from;

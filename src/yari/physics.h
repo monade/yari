@@ -31,10 +31,12 @@ typedef struct {
 } YrCollisionInfo;
 
 YrCollisionInfo yr_check_collision(YrGameState *state, Vector2 next_pos, float threshold, uint32_t collision_mask);
+YrCollisionInfo yr_check_collision_with_radius(YrGameState *state, Vector2 next_pos, float threshold, uint32_t collision_mask, float radius);
 
 YrCollisionInfo yr_check_ray_collision(YrGameState *state, Vector2 origin, Vector2 dir, float threshold, uint32_t collision_mask);
 
 Vector2 yr_slide_collision(YrGameState *state, Vector2 from, Vector2 to, YrCollisionInfo *hit, float threshold, uint32_t collision_mask);
+Vector2 yr_slide_collision_with_radius(YrGameState *state, Vector2 from, Vector2 to, YrCollisionInfo *hit, float threshold, uint32_t collision_mask, float radius);
 
 Vector2 yr_rotate(Vector2 vector, enum YrRotationDirection direction, float rotation_speed);
 
@@ -43,8 +45,10 @@ Vector2 yr_move(Vector2 subject_position, Vector2 subject_direction, enum YrMove
 #ifdef YARI_NO_PREFIX
 #define CollisionInfo YrCollisionInfo
 #define check_collision yr_check_collision
+#define check_collision_with_radius yr_check_collision_with_radius
 #define check_ray_collision yr_check_ray_collision
 #define slide_collision yr_slide_collision
+#define slide_collision_with_radius yr_slide_collision_with_radius
 #define rotate yr_rotate
 #define move yr_move
 #endif
