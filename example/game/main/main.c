@@ -81,6 +81,8 @@ void pickup_key(YrGameState *state, YrEntity *self, size_t index) {
 }
 
 void trigger_end(YrGameState *state, YrEntity *self, size_t index) {
+    (void)state;
+    (void)index;
     if (self->dist < PLAYER_COLLISION_THRESHOLD + self->collision_threshold) {
         if(game.player.has_key) {
             game.state = 2;
@@ -89,6 +91,7 @@ void trigger_end(YrGameState *state, YrEntity *self, size_t index) {
 }
 
 void update_mummy(YrGameState *state, YrEntity *self, size_t index) {
+    (void)index;
     MummyData *data = (MummyData*) self->entity_data;
     if (data->last_hit_time + ANIMATION_SPEED >= get_time()) {
         self->texture_id = tx_spr_008;
@@ -310,7 +313,7 @@ void yr_update_game(GameState *state) {
     switch(game.state) {
     case 0:
         clear_screen(YR_BLACK);
-        draw_text("Press any key to start", 120, 30, fonts[YR_FONT_MD], YR_WHITE);
+        draw_text("Press SPACE to start", state->screen_width/2-140, state->screen_height/2-10, fonts[YR_FONT_MD], YR_WHITE);
         if(is_key_pressed(YR_KEY_SPACE)) {
             game.state = 1;
         }
@@ -334,11 +337,11 @@ void yr_update_game(GameState *state) {
         break;
     case 2:
         clear_screen(YR_BLACK);
-        draw_text("You win!", 120, 30, fonts[YR_FONT_MD], YR_WHITE);
+        draw_text("You win!", state->screen_width/2-60, state->screen_height/2-10, fonts[YR_FONT_MD], YR_WHITE);
         break;
     case 3:
         clear_screen(YR_BLACK);
-        draw_text("Game Over", 120, 30, fonts[YR_FONT_MD], YR_WHITE);
+        draw_text("Game Over", state->screen_width/2-60, state->screen_height/2-10, fonts[YR_FONT_MD], YR_WHITE);
         break;
     }
 }

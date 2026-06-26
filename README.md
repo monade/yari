@@ -27,6 +27,7 @@ SDL2.
 - [ESP32 Configuration](#esp32-configuration)
 - [Compatibility and Current Limits](#compatibility-and-current-limits)
 - [Included Examples](#included-examples)
+- [Acknowledgements](#acknowledgements)
 
 ## What is YARI?
 
@@ -55,8 +56,7 @@ The repository includes:
   LCD pins and ready-to-build ESP-IDF examples.
 - **Desktop iteration**: the same game can run on macOS/Linux through raylib or
   SDL2, which makes development and debugging much faster.
-- **Web output**: the full game example can be compiled to WebAssembly and
-  served from `docs/`.
+- **Web output**: the full game example can be compiled to WebAssembly and run in a browser.
 - **Static assets**: textures and fonts are packed into C arrays, making them
   easy to ship inside embedded firmware.
 - **Built-in map editor**: `map_builder` generates map data, player settings,
@@ -102,14 +102,14 @@ Requirements:
 For the default raylib backend on macOS with Homebrew:
 
 ```sh
-brew install raylib pkg-config
+brew install raylib
 make run
 ```
 
 For the SDL2 backend on macOS with Homebrew:
 
 ```sh
-brew install sdl2 pkg-config
+brew install sdl2
 make run-sdl
 ```
 
@@ -129,7 +129,7 @@ Both start the complete example in `example/game/main/main.c`.
 Requirements:
 
 - Emscripten active in the shell (`emcc` and `emar` in `PATH`);
-- `npx` only if you want to serve `docs/` locally.
+- `npx` if you want to serve locally.
 
 ```sh
 make wasm
@@ -171,30 +171,32 @@ The web build writes `docs/index.html`, `docs/index.js` and `docs/index.wasm`.
 A YARI game includes `yari.h`, defines `YARI_MAIN` and implements two
 functions:
 
-- `yr_init_game(YrGameState *state)`: configures the screen, map, player,
-  assets, target FPS and initial state.
-- `yr_update_game(YrGameState *state)`: runs one game frame.
+```c
+#define YARI_MAIN
+// #define YARI_NO_PREFIX
+#include <yari.h>
+
+...
+
+void yr_init_game(YrGameState *state) {
+    // configure the game state
+    state->map = (uint8_t *)map;
+    state->map_cols = 20;
+    state->map_rows = 20;
+    state->camera = (YrCamera){.pos = {14.5, 5.5}, .dir = {-0.8, 0.5}};
+}
+
+void yr_update_game(YrGameState *state) {
+    // update the game state and draw the frame
+    yr_draw_game(state);
+}
+```
 
 Youc can find a minimal example in `example/base/main.c`:
 
 
 `YARI_NO_PREFIX` is optional. Without it, use the explicit `yr_` and `Yr`
 symbols, such as `yr_draw_game()` and `YrGameState`.
-
-### Runtime Lifecycle
-
-When `YARI_MAIN` is defined, YARI provides `main()` on desktop/web and
-`app_main()` on ESP32.
-
-The internal loop:
-
-1. initializes the global game state and calls `yr_init_game()`;
-2. initializes the renderer and input backend;
-3. calls `yr_begin_drawing()` at the beginning of each frame;
-4. updates `state->game_time`;
-5. calls `yr_update_game()`;
-6. transfers the framebuffer with `yr_render_screen()`;
-7. calls `yr_end_drawing()`.
 
 ## Core API
 
@@ -204,10 +206,10 @@ The internal loop:
 
 | Field | Purpose |
 | --- | --- |
-| `player` | player position, direction and collision radius |
-| `screen_width`, `screen_height` | logical framebuffer resolution |
+| `camera` | camera position, direction, offset and rotation |
+| `screen_width`, `screen_height` | framebuffer resolution |
 | `game_title` | desktop window title |
-| `target_fps` | target frame rate, expected to be greater than zero |
+| `target_fps` | target frame rate, zero for unlimited |
 | `map`, `map_cols`, `map_rows` | tile map stored as `uint8_t` cells |
 | `entities` | dynamic array of sprites/objects |
 | `ray_res` | pixel width of each cast ray; larger values are faster but blockier |
@@ -226,7 +228,7 @@ The internal loop:
 | `yr_draw_walls(state)` | raycasts and draws walls |
 | `yr_draw_entities(state)` | updates, sorts and draws entities |
 | `yr_draw_text(text, x, y, font, color)` | draws bitmap text |
-| `yr_draw_texture(...)` | draws a scaled 2D texture, useful for HUD and weapons |
+| `yr_draw_texture(x, y, width, height, texture, texture_width, texture_height, skip_empty)` | draws a scaled 2D texture, useful for HUD and UI elements |
 | `yr_clear_screen(color)` | fills the framebuffer |
 | `yr_draw_rectangle(x, y, w, h, color)` | low-level renderer primitive |
 | `yr_get_frame_time()` | frame delta time in seconds |
@@ -288,7 +290,7 @@ shared across desktop backends and embedded targets.
 | `entity_data` | user-defined pointer |
 | `collision_mask` | entity collision layer |
 | `collision_threshold` | collision radius |
-| `update` | callback invoked by `yr_draw_entities()` |
+| `update` | callback invoked every frame |
 
 To add or remove entities, use the dynamic array macros from `da.h`:
 
@@ -297,9 +299,6 @@ yr_da_append(&state->entities, entity);
 yr_da_remove_unordered(&state->entities, index);
 yr_da_free(&state->entities);
 ```
-
-With `YARI_NO_PREFIX`, these become `da_append`, `da_remove_unordered` and
-`da_free`.
 
 ## Maps, Assets and Fonts
 
@@ -318,21 +317,22 @@ Cell `(x, y)` covers the area `[x, x+1)`, `[y, y+1)`.
 
 ### Image Assets
 
-Source assets live in `assets/` and are converted into
-`example/game/main/assets.h`:
+Source assets are converted into static C arrays by `assets_packer`.
 
 ```sh
 make assets
+# it runs build/assets_packer example/game/assets example/game/main/assets.h
 ```
 
 `assets_packer`:
 
-- reads `.png` and `.jpg` files;
+- reads `.png` and `.jpg` files from the directory passed as the first argument;
 - generates one `yr_pixel_t` array per image;
 - generates a `TextureId` enum with `tx_<file_name>` symbols;
 - generates `assets_map[]`;
 - emits both RGB565 data for `COLOR_565` builds and 32-bit data for
   desktop/web builds.
+- the output file is written to the path passed as the second argument.
 
 Use simple C-friendly file names, for example `wal_001.png`, `wep_gun0.png` or
 `door_metal.png`.
@@ -344,7 +344,11 @@ Use simple C-friendly file names, for example `wal_001.png`, `wep_gun0.png` or
 
 ```sh
 make assets
+# it runs build/font_baker example/game/assets/font example/game/main/fonts.h
 ```
+
+- reads `.ttf` files from the directory passed as the first argument;
+- the output file is written to the path passed as the second argument;
 
 `font_baker` generates four font sizes:
 
@@ -356,7 +360,7 @@ make assets
 Example:
 
 ```c
-draw_text("HP: 100", 10, 15, fonts[YR_FONT_SM], YR_GREEN);
+yr_draw_text("HP: 100", 10, 15, fonts[YR_FONT_SM], YR_GREEN);
 ```
 
 ## Map Builder
@@ -465,10 +469,10 @@ Main editor modes:
 | --- | --- |
 | `make run` | builds and runs `example/game` with raylib on desktop |
 | `make run-sdl` | builds and runs `example/game` with SDL2 on desktop |
-| `make run-base` | runs the minimal example |
+| `make run-base` | builds and runs the minimal example |
 | `make assets` | regenerates `assets.h` and `fonts.h` |
-| `make run-map-builder` | runs the map editor |
-| `make run-wasm` | serves `docs/` with `npx serve` |
+| `make run-map-builder` | builds and runs the map editor |
+| `make run-wasm` | builds and serves the WebAssembly `example/game` |
 | `make esp32-build` | builds `example/game` with ESP-IDF |
 | `make esp32-flash` | builds and flashes `example/game` |
 | `make esp32-monitor` | opens the serial monitor |
@@ -489,8 +493,6 @@ Main configuration macros:
 
 ```c
 // Framebuffer
-#define FB_DOUBLE_BUFFER // enable double buffering (two framebuffers allocated in RAM, faster but more memory usage)
-
 // Display
 #define LCD_W 240
 #define LCD_H 136
@@ -591,3 +593,8 @@ make run
 make run-sdl
 make run-wasm
 ```
+
+## Acknowledgements
+
+- [lodev](https://lodev.org/cgtutor/raycasting.html) raycasting tutorial;
+- [raylib](https://github.com/raysan5/raylib) used for the desktop and web backends;

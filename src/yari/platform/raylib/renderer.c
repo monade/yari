@@ -18,7 +18,7 @@ void yr_clear_screen(yr_pixel_t color) {
 
 void yr_renderer_init(int width, int height, const char *title, unsigned int target_fps) {
     InitWindow(width, height, title);
-    SetTargetFPS(target_fps);
+    if(target_fps > 0) SetTargetFPS(target_fps);
     SetTraceLogLevel(LOG_WARNING);
     frame_buffer = GenImageColor(width, height, BLACK);
     frame_texture = LoadTextureFromImage(frame_buffer);
