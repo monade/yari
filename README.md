@@ -580,9 +580,9 @@ the engine contract without the asset pipeline.
 make run-base
 ```
 
-### `example/fps`
+### `example/fps` and `example/cart`
 
-A complete example with:
+Two complete examples with:
 
 - packed assets from `assets/`;
 - bitmap fonts;
@@ -592,11 +592,19 @@ A complete example with:
 - a weapon pickup;
 - desktop, ESP32 and WebAssembly builds.
 
+
 ```sh
+# fps
 make esp32-flash
 make run
 make run-sdl
 make run-wasm
+
+# cart
+make esp32-cart-flash
+make run-cart
+make run-sdl-cart
+
 ```
 
 ## Acknowledgements

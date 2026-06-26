@@ -102,12 +102,16 @@ build/font_baker: src/tools/font_baker.c
 assets: build/assets_packer build/font_baker
 	build/assets_packer example/fps/assets example/fps/main/assets.h
 	build/font_baker example/fps/assets/font example/fps/main/fonts.h
+	build/assets_packer example/cart/assets example/cart/main/assets.h
+	build/font_baker example/cart/assets/font example/cart/main/fonts.h
 
 build/map_builder: src/tools/map_builder.c src/tools/raygui.h
 	$(CC) -Wall -Wextra -O2 $(RAYLIB_CFLAGS) -I./src/tools -o build/map_builder src/tools/map_builder.c $(RAYLIB_LIBS)
 map-builder: build/map_builder
-run-map-builder: map-builder
-	build/map_builder assets example/fps/main/level.h
+edit-fps: map-builder
+	build/map_builder example/fps/assets example/fps/main/level.h
+edit-cart: map-builder
+	build/map_builder example/cart/assets example/cart/main/level.h
 
 # Examples
 
@@ -124,7 +128,7 @@ ray-base: build/ray-base
 run-base: ray-base
 	build/ray-base
 
-### game example
+### fps example
 build/ray: assets build/yari/libyari_raylib.a example/fps/main/main.c
 	$(CC) $(MAIN_CFLAGS) -o build/ray example/fps/main/main.c $(MAIN_LIBS) $(RAYLIB_LIBS)
 
@@ -133,7 +137,7 @@ ray: build/ray
 run: ray
 	build/ray
 
-### SDL2 game example
+### SDL2 fps example
 build/sdl: assets build/yari/libyari_sdl.a example/fps/main/main.c
 	$(CC) $(MAIN_CFLAGS) -o build/sdl example/fps/main/main.c $(SDL_MAIN_LIBS) $(SDL2_LIBS)
 
@@ -164,6 +168,24 @@ wasm: $(RAYLIB_WEB_OUTPUT)
 run-wasm: wasm
 	npx serve docs
 
+
+### cart example
+build/ray-cart: assets build/yari/libyari_raylib.a example/cart/main/main.c
+	$(CC) $(MAIN_CFLAGS) -o build/ray-cart example/cart/main/main.c $(MAIN_LIBS) $(RAYLIB_LIBS)
+
+.PHONY: ray-cart run-cart
+ray-cart: build/ray-cart
+run-cart: ray-cart
+	build/ray-cart
+
+### SDL2 cart example
+build/sdl-cart: assets build/yari/libyari_sdl.a example/cart/main/main.c
+	$(CC) $(MAIN_CFLAGS) -o build/sdl-cart example/cart/main/main.c $(SDL_MAIN_LIBS) $(SDL2_LIBS)
+
+.PHONY: sdl-cart run-sdl-cart
+sdl-cart: build/sdl-cart
+run-sdl-cart: sdl-cart
+	build/sdl-cart
 
 ## ESP32 examples
 
@@ -200,3 +222,20 @@ esp32-flash-monitor: esp32-flash
 
 esp32-clean:
 	cd example/fps && . $(ESP32_HOME)/export.sh && idf.py fullclean
+
+### cart example
+.PHONY: esp32-cart-build esp32-cart-flash esp32-cart-monitor esp32-cart-flash-monitor esp32-cart-clean
+esp32-cart-build: assets
+	cd example/cart && . $(ESP32_HOME)/export.sh && idf.py build && idf.py size
+
+esp32-cart-flash: esp32-cart-build
+	cd example/cart && . $(ESP32_HOME)/export.sh && idf.py flash
+
+esp32-cart-monitor:
+	cd example/cart && . $(ESP32_HOME)/export.sh && idf.py monitor
+
+esp32-cart-flash-monitor: esp32-cart-flash
+	cd example/cart && . $(ESP32_HOME)/export.sh && idf.py monitor
+
+esp32-cart-clean:
+	cd example/cart && . $(ESP32_HOME)/export.sh && idf.py fullclean
