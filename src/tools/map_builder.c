@@ -2775,7 +2775,7 @@ static bool write_level_header(App *app) {
         if (entity->update_fn[0] != '\0') {
             str_appendf(&out, "static inline YrEntity create_%s_pos(Vector2 pos, void *data) {\n", entity->name);
         } else {
-            str_appendf(&out, "static inline YrEntity create_%s_pos(Vector2 pos, void *data, void (*update)(YrGameState *state, YrEntity *self, size_t index)) {\n", entity->name);
+            str_appendf(&out, "static inline YrEntity create_%s_pos(Vector2 pos, void *data, YrEntityUpdateFunc update) {\n", entity->name);
 
         }
         str_append(&out, "    return (YrEntity){\n");
@@ -2805,7 +2805,7 @@ static bool write_level_header(App *app) {
         if (entity->update_fn[0] != '\0') {
             str_appendf(&out, "static inline YrEntity create_%s(void *data) {\n", entity->name);
         } else {
-            str_appendf(&out, "static inline YrEntity create_%s(void *data, void (*update)(YrGameState *state, YrEntity *self, size_t index)) {\n", entity->name);
+            str_appendf(&out, "static inline YrEntity create_%s(void *data, YrEntityUpdateFunc update) {\n", entity->name);
         }
         str_appendf(&out, "    return create_%s_pos((Vector2){", entity->name);
         append_float_literal(&out, entity->pos.x);

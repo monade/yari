@@ -39,9 +39,10 @@ static inline yr_pixel_t yr_color_brightness(yr_pixel_t color, float factor) {
 
     if (factor < 0.0f) {
         factor = 1.0f + factor;
-        red *= factor;
-        green *= factor;
-        blue *= factor;
+        red = red * factor + 0.5f;
+        green = green * factor - 1.0f;
+        blue = blue * factor + 0.5f;
+        if (green < 0) green = 0;
     } else {
         red = (31 - red) * factor + red;
         green = (63 - green) * factor + green;

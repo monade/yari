@@ -11,6 +11,9 @@ SDL2.
 
 [![C](https://img.shields.io/badge/C-99-00599C?style=flat-square)](#) [![ESP32](https://img.shields.io/badge/ESP32-ST7789-E7352C?style=flat-square)](#supported-targets) [![raylib](https://img.shields.io/badge/raylib-5.5-111111?style=flat-square)](#desktop-macoslinux) [![SDL2](https://img.shields.io/badge/SDL2-2.x-173B6D?style=flat-square)](#desktop-macoslinux) [![WebAssembly](https://img.shields.io/badge/WebAssembly-Emscripten-654FF0?style=flat-square)](#webassembly)
 
+**Try the [browser demo](https://monade.github.io/yari)**
+
+[![ESP32 video](docs/media/esp32_demo.webp)](#)
 
 ## Table of Contents
 
@@ -364,6 +367,8 @@ yr_draw_text("HP: 100", 10, 15, fonts[YR_FONT_SM], YR_GREEN);
 ```
 
 ## Map Builder
+
+[![map builder](docs/media/map_builder.png)](#)
 
 YARI includes a raylib/raygui visual level editor:
 

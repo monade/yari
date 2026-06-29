@@ -16,6 +16,12 @@ static inline int fixed16_to_int(int value) {
     return value >= 0 ? (value >> 16) : -((-value) >> 16);
 }
 
+static inline float yr_projection_plane_scale(const YrGameState *state) {
+    static float base_scale = 0.0f;
+    if (base_scale == 0.0f) base_scale = tanf(YR_FOV_ANGLE / 2.0f);
+    return base_scale * (float)state->screen_width / (float)state->screen_height;
+}
+
 static inline void yr_draw_texture_column(
     int x,
     int y,
@@ -129,7 +135,7 @@ void yr_raycast_walls(YrGameState *state, Vector2 dir, int slice_x) {
         if (dist > YR_MAX_RENDER_DIST) break; // stop if the distance exceeds the maximum render distance
 
         state->zbuffer[z_index] = dist; // store distance in z-buffer for sprite rendering
-        int h = (int)((float)state->screen_width / dist);
+        int h = (int)((float)state->screen_height / dist);
         float bright_factor = 1.0f / dist - 0.9f;
         if (bright_factor > 0.0f) bright_factor = 0.0f;
 
@@ -181,8 +187,7 @@ void yr_raycast_walls(YrGameState *state, Vector2 dir, int slice_x) {
  */
 void yr_draw_walls(YrGameState *state) {
     YrCamera *p = &state->camera;
-    static float scale = 0.0f;
-    if (scale == 0.0f) scale = tanf(YR_FOV_ANGLE / 2.0f);
+    float scale = yr_projection_plane_scale(state);
     Vector2 plane = { .x = -p->dir.y * scale, .y = p->dir.x * scale };
     int screen_width = state->screen_width;
     int ray_res = state->ray_res;
@@ -207,8 +212,7 @@ void yr_draw_walls(YrGameState *state) {
  */
 void yr_draw_background(YrGameState *state) {
     YrCamera *p = &state->camera;
-    static float scale = 0.0f;
-    if (scale == 0.0f) scale = tanf(YR_FOV_ANGLE / 2.0f);
+    float scale = yr_projection_plane_scale(state);
     Vector2 plane = { .x = -p->dir.y * scale, .y = p->dir.x * scale };
     Vector2 r0 = { .x = p->dir.x - plane.x, .y = p->dir.y - plane.y };
     Vector2 r1 = { .x = p->dir.x + plane.x, .y = p->dir.y + plane.y };
@@ -218,7 +222,7 @@ void yr_draw_background(YrGameState *state) {
     int sw = state->screen_width;
     int sh = state->screen_height;
     int rr = state->ray_res;
-    float h_cam = (float)sw * 0.5f;
+    float h_cam = (float)sh * 0.5f;
     float half_h = (float)sh * 0.5f;
 
     const yr_pixel_t *floor_tex = NULL;
@@ -306,19 +310,14 @@ void yr_draw_entities(YrGameState *state) {
         if (state->entities.data[i].disabled) continue;
         state->entities.data[i].dist = Vector2Length(Vector2Subtract(state->entities.data[i].pos, p->pos));
     }
-    // Update entities (call their update functions)
-    for (size_t i = 0; i < state->entities.length; i++) {
-        if (state->entities.data[i].disabled || state->entities.data[i].update == NULL) continue;
-        state->entities.data[i].update(state, &state->entities.data[i], i);
-    }
 
     // Sort entities by distance from the camera in descending order (farthest first) for proper rendering.
     qsort(state->entities.data, state->entities.length, sizeof(YrEntity), compare_sprite_dist);
 
     float half_screen = state->screen_width * 0.5f;
     float tan_angle = tanf(p->angle);
-    static float scale = 0.0f;
-    if (scale == 0.0f) scale = tanf(YR_FOV_ANGLE / 2.0f);
+    float scale = yr_projection_plane_scale(state);
+    float projection_scale = (float)state->screen_height;
     Vector2 plane = { .x = -p->dir.y * scale, .y = p->dir.x * scale };
     float invDet = 1.0f / (plane.x * p->dir.y - p->dir.x * plane.y);
 
@@ -342,9 +341,9 @@ void yr_draw_entities(YrGameState *state) {
 
         int spriteScreenX = (int)(half_screen * (1 + transform.x / transform.y));
         int v_shift = (int)(p->horizon * state->screen_height * 0.5f + ((float)spriteScreenX - half_screen) * tan_angle);
-        int vmove = (int)((sprite.vmove * state->screen_width) / transform.y);
+        int vmove = (int)((sprite.vmove * projection_scale) / transform.y);
 
-        int spriteHeight = abs((int)((state->screen_width * (1.0 - sprite.vdiv)) / transform.y));
+        int spriteHeight = abs((int)((projection_scale * (1.0 - sprite.vdiv)) / transform.y));
         if (spriteHeight <= 0) continue;
         int spriteTop = (state->screen_height - spriteHeight) / 2 + vmove + v_shift;
         int spriteBottom = spriteTop + spriteHeight;
@@ -354,7 +353,7 @@ void yr_draw_entities(YrGameState *state) {
         if (drawEndY > state->screen_height) drawEndY = state->screen_height;
         if (drawEndY <= drawStartY) continue;
 
-        int spriteWidth = abs((int)((state->screen_width * (1.0 - sprite.hdiv)) / transform.y));
+        int spriteWidth = abs((int)((projection_scale * (1.0 - sprite.hdiv)) / transform.y));
         if (spriteWidth <= 0) continue;
         int spriteLeft = spriteScreenX - spriteWidth / 2;
         int spriteRight = spriteLeft + spriteWidth;
@@ -387,6 +386,12 @@ void yr_draw_entities(YrGameState *state) {
                     true);
             }
         }
+    }
+
+    // Update entities (call their update functions)
+    for (size_t i = 0; i < state->entities.length; i++) {
+        if (state->entities.data[i].disabled || state->entities.data[i].update == NULL) continue;
+        state->entities.data[i].update(state, &state->entities.data[i], i);
     }
 }
 

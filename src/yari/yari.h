@@ -22,7 +22,9 @@ typedef struct YrGameState YrGameState;
 #define YR_CMSK_WALL    1
 #define YR_CMSK_ALL    -1
 
-typedef struct YrEntity {
+typedef struct YrEntity YrEntity;
+typedef void (*YrEntityUpdateFunc)(YrGameState *state, YrEntity *self, size_t index);
+struct YrEntity {
     Vector2 pos;
     int texture_id;
     float dist;
@@ -33,8 +35,8 @@ typedef struct YrEntity {
     void *entity_data;
     uint32_t collision_mask;
     float collision_threshold;
-    void (*update)(YrGameState *state, struct YrEntity *self, size_t index);
-} YrEntity;
+    YrEntityUpdateFunc update;
+};
 
 typedef struct {
     YrEntity *data;
