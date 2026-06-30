@@ -17,10 +17,10 @@
 #define SCREEN_H 600
 #endif
 
-#define PLAYER_ROTATION_SPEED 0.15f
+#define PLAYER_ROTATION_SPEED 0.25f
 #define PLAYER_MAX_ROTATION_SPEED 3.0f
-#define PLAYER_MAX_SPEED 16.0f
-#define PLAYER_ACCELERATION 15.0f
+#define PLAYER_MAX_SPEED 9.0f
+#define PLAYER_ACCELERATION 12.0f
 #define PLAYER_BRAKE_DECELERATION 20.0f
 #define PLAYER_CRASH_DECELERATION 50.0f
 
@@ -28,7 +28,6 @@
 int joystick_id;
 
 // Menu state (persists across frames)
-static int g_max_speed = 16;
 static int g_show_fps  = 1;
 
 typedef struct {
@@ -39,15 +38,11 @@ typedef struct {
 PlayerState playerState;
 int game_state = 0;
 
-void update_slower(GameState *state, Entity *self, size_t index) {
-    (void)state;
-    (void)index;
-    if(self->dist < YR_PLAYER_COLLISION_THRESHOLD + self->collision_threshold) {
-        playerState.speed -= get_frame_time() * PLAYER_BRAKE_DECELERATION;
-        if (playerState.speed < 0) playerState.speed = 0;
-        if (playerState.speed != 0) playerState.is_colliding = true;
-    }
-}
+#define is_slowing(state) \
+    ((state)->map_floor[(int)(state)->camera.pos.x + ((int)(state)->camera.pos.y * (state)->map_cols)] != tx_wal_000 && \
+     (state)->map_floor[(int)(state)->camera.pos.x + ((int)(state)->camera.pos.y * (state)->map_cols)] != tx_wal_002 && \
+     (state)->map_floor[(int)(state)->camera.pos.x + ((int)(state)->camera.pos.y * (state)->map_cols)] != tx_wal_005 && \
+     (state)->map_floor[(int)(state)->camera.pos.x + ((int)(state)->camera.pos.y * (state)->map_cols)] != 0)
 
 
 void move_player(GameState *state) {
@@ -79,15 +74,15 @@ void move_player(GameState *state) {
     if (is_key_down(YR_KEY_W) || is_key_down(YR_KEY_SPACE)) {
         is_accelerating = true;
         playerState.speed += get_frame_time() * PLAYER_ACCELERATION;
-        if (playerState.speed > (float)g_max_speed) {
-            playerState.speed = (float)g_max_speed;
+        if (playerState.speed > PLAYER_MAX_SPEED) {
+            playerState.speed = PLAYER_MAX_SPEED;
         }
     }
     if (is_key_down(YR_KEY_S) || is_key_down(YR_KEY_X)) {
         is_braking = true;
         playerState.speed -= get_frame_time() * PLAYER_BRAKE_DECELERATION;
-        if (playerState.speed < -(float)g_max_speed / 2.0f) {
-            playerState.speed = -(float)g_max_speed / 2.0f;
+        if (playerState.speed < -PLAYER_MAX_SPEED / 2.0f) {
+            playerState.speed = -PLAYER_MAX_SPEED / 2.0f;
         }
     }
     if (!is_accelerating && !is_braking) {
@@ -110,6 +105,11 @@ void move_player(GameState *state) {
         if (playerState.speed < 0) playerState.speed = 0;
     } else {
         playerState.is_colliding = false;
+    }
+
+    if (is_slowing(state) && fabs(playerState.speed) > 2.0f) {
+        playerState.speed -= get_frame_time() * PLAYER_BRAKE_DECELERATION;
+        if (playerState.speed < 0) playerState.speed = 0;
     }
 }
 

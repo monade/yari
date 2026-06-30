@@ -169,11 +169,11 @@ void update_boss(YrGameState *state, YrEntity *self, size_t index) {
         }
     }
 
-    if ( timer_loop(&data->shot_cd, 1.5f)) {
+    if (timer_loop(&data->shot_cd, 1.5f)) {
         Vector2 dir = Vector2Subtract(state->camera.pos, self->pos);
         dir = Vector2Normalize(dir);
         Vector2 projectile_pos = Vector2Add(self->pos, Vector2Scale(dir, 0.1f));
-        ProjectileData *p = malloc(sizeof(*p));
+        ProjectileData *p = calloc(1, sizeof(*p));
         p->dir = dir;
         Entity projectile = create_boss_projectile_pos(projectile_pos, p);
         da_append(&state->entities, projectile);
@@ -206,16 +206,16 @@ void move_player(GameState *state) {
     float joy_x = esp_joystick_get_axis(joystick_id, YR_X_AXIS);
     float joy_y = esp_joystick_get_axis(joystick_id, YR_Y_AXIS);
 
-    if (is_key_down(YR_KEY_A) || joy_x < -0.5f) {
+    if (is_key_down(YR_KEY_A) || joy_x < -0.15f) {
         p->dir = rotate(p->dir, YR_COUNTERCLOCKWISE, PLAYER_ROTATION_SPEED);
     }
-    if (is_key_down(YR_KEY_D) || joy_x > 0.5f) {
+    if (is_key_down(YR_KEY_D) || joy_x > 0.15f) {
         p->dir = rotate(p->dir, YR_CLOCKWISE, PLAYER_ROTATION_SPEED);
     }
 
     Vector2 target = p->pos;
-    if (is_key_down(YR_KEY_W) || joy_y > 0.5f) target = move(target, p->dir, YR_FORWARD, PLAYER_SPEED);
-    if (is_key_down(YR_KEY_S) || joy_y < -0.5f) target = move(target, p->dir, YR_BACK, PLAYER_SPEED);
+    if (is_key_down(YR_KEY_W) || joy_y > 0.15f) target = move(target, p->dir, YR_FORWARD, PLAYER_SPEED);
+    if (is_key_down(YR_KEY_S) || joy_y < -0.15f) target = move(target, p->dir, YR_BACK, PLAYER_SPEED);
     if (is_key_down(YR_KEY_E)) target = move(target, p->dir, YR_RIGHT, PLAYER_SPEED);
     if (is_key_down(YR_KEY_Q)) target = move(target, p->dir, YR_LEFT, PLAYER_SPEED);
 
@@ -274,7 +274,7 @@ void print_fps() {
 }
 
 void spawn_mummy(GameState *state, Vector2 pos) {
-    EnemyData *data = malloc(sizeof(*data));
+    EnemyData *data = calloc(1, sizeof(*data));
     data->hp = 100;
     data->is_boss = false;
     Entity e = create_mummy_pos(pos, data);
@@ -282,7 +282,7 @@ void spawn_mummy(GameState *state, Vector2 pos) {
 }
 
 void spawn_boss(GameState *state) {
-    EnemyData *data = malloc(sizeof(*data));
+    EnemyData *data = calloc(1, sizeof(*data));
     data->hp = 500;
     data->is_boss = true;
     Entity e = create_boss(data);
@@ -390,7 +390,7 @@ void shoot_gun(GameState *state) {
     if(!timer_is_done(&game.player.shot_cd)) return;
 
     
-    float shot_cd, range; int damage;
+    float shot_cd = 1, range = 0; int damage = 0;
     switch(game.player.gun) {
     case 0: damage =  10; range = 1.5; shot_cd = HAND_COOLDOWN;    break;
     case 1: damage =  35; range =  30; shot_cd = GUN_COOLDOWN;     break;

@@ -230,6 +230,86 @@ void yr_draw_background(YrGameState *state) {
     if (state->floor_texture) floor_tex = state->assets_map[state->floor_texture];
     if (state->ceil_texture) ceil_tex = state->assets_map[state->ceil_texture];
 
+    if (p->angle == 0.0f) {
+        int hz = (int)(half_h + p->horizon * half_h);
+        if (hz < 0) hz = 0;
+        if (hz > sh) hz = sh;
+
+        if (ceil_tex) {
+            for (int y = 0; y < hz; y += rr) {
+                float row_dist = h_cam / (float)(hz - y);
+                if (row_dist >= YR_MAX_RENDER_DIST) {
+                    yr_draw_rectangle(0, y, sw, rr, YR_BLACK);
+                    continue;
+                }
+
+                float brightness = -(row_dist / YR_MAX_RENDER_DIST);
+                int brightness_scale = (int)((1.0f + brightness) * 256.0f);
+                float world_x = p->pos.x + r0.x * row_dist;
+                float world_y = p->pos.y + r0.y * row_dist;
+                float step_x = ray_dir.x * row_dist * (float)rr * inv_sw;
+                float step_y = ray_dir.y * row_dist * (float)rr * inv_sw;
+
+                for (int x = 0; x < sw; x += rr, world_x += step_x, world_y += step_y) {
+                    const yr_pixel_t *tex = ceil_tex;
+                    if (state->map_ceil) {
+                        int cell_x = (int)world_x;
+                        int cell_y = (int)world_y;
+                        if (cell_x >= 0 && cell_x < state->map_cols && cell_y >= 0 && cell_y < state->map_rows) {
+                            uint8_t tex_id = state->map_ceil[cell_y * state->map_cols + cell_x];
+                            if (tex_id) tex = state->assets_map[tex_id];
+                        }
+                    }
+
+                    int tx = ((int)(world_x * (float)YR_TEXTURE_SIZE)) & (YR_TEXTURE_SIZE - 1);
+                    int ty = ((int)(world_y * (float)YR_TEXTURE_SIZE)) & (YR_TEXTURE_SIZE - 1);
+                    yr_pixel_t c = yr_color_darken(tex[ty * YR_TEXTURE_SIZE + tx], brightness_scale);
+                    yr_draw_rectangle(x, y, rr, rr, c);
+                }
+            }
+        } else if (hz > 0) {
+            yr_draw_rectangle(0, 0, sw, hz, YR_BLACK);
+        }
+
+        if (floor_tex) {
+            for (int y = hz; y < sh; y += rr) {
+                float row_dist = h_cam / (float)(y - hz + 1);
+                if (row_dist >= YR_MAX_RENDER_DIST) {
+                    yr_draw_rectangle(0, y, sw, rr, YR_BLACK);
+                    continue;
+                }
+
+                float brightness = -(row_dist / YR_MAX_RENDER_DIST);
+                int brightness_scale = (int)((1.0f + brightness) * 256.0f);
+                float world_x = p->pos.x + r0.x * row_dist;
+                float world_y = p->pos.y + r0.y * row_dist;
+                float step_x = ray_dir.x * row_dist * (float)rr * inv_sw;
+                float step_y = ray_dir.y * row_dist * (float)rr * inv_sw;
+
+                for (int x = 0; x < sw; x += rr, world_x += step_x, world_y += step_y) {
+                    const yr_pixel_t *tex = floor_tex;
+                    if (state->map_floor) {
+                        int cell_x = (int)world_x;
+                        int cell_y = (int)world_y;
+                        if (cell_x >= 0 && cell_x < state->map_cols && cell_y >= 0 && cell_y < state->map_rows) {
+                            uint8_t tex_id = state->map_floor[cell_y * state->map_cols + cell_x];
+                            if (tex_id) tex = state->assets_map[tex_id];
+                        }
+                    }
+
+                    int tx = ((int)(world_x * (float)YR_TEXTURE_SIZE)) & (YR_TEXTURE_SIZE - 1);
+                    int ty = ((int)(world_y * (float)YR_TEXTURE_SIZE)) & (YR_TEXTURE_SIZE - 1);
+                    yr_pixel_t c = yr_color_darken(tex[ty * YR_TEXTURE_SIZE + tx], brightness_scale);
+                    yr_draw_rectangle(x, y, rr, rr, c);
+                }
+            }
+        } else if (sh - hz > 0) {
+            yr_draw_rectangle(0, hz, sw, sh - hz, YR_BLACK);
+        }
+
+        return;
+    }
+
     float tan_angle = tanf(p->angle);
     float half_w = (float)sw * 0.5f;
 
