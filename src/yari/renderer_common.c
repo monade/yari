@@ -49,7 +49,7 @@ void yr_draw_text(
     int cursor_x = x;
     for (const char *p = text; *p; p++) {
         char ch = *p;
-        if (ch < 32 || ch > 127) continue;
+        if (ch < 32) continue;
 
         yr_glyph_t g = font->glyphs[(unsigned char)ch - 32];
         int dst_x = cursor_x + (int)g.xoff;
