@@ -102,16 +102,16 @@ build/font_baker: src/tools/font_baker.c
 assets: build/assets_packer build/font_baker
 	build/assets_packer example/fps/assets example/fps/main/assets.h
 	build/font_baker example/fps/assets/font example/fps/main/fonts.h
-	build/assets_packer example/cart/assets example/cart/main/assets.h
-	build/font_baker example/cart/assets/font example/cart/main/fonts.h
+	build/assets_packer example/kart/assets example/kart/main/assets.h
+	build/font_baker example/kart/assets/font example/kart/main/fonts.h
 
 build/map_builder: src/tools/map_builder.c src/tools/raygui.h
 	$(CC) -Wall -Wextra -O2 $(RAYLIB_CFLAGS) -I./src/tools -o build/map_builder src/tools/map_builder.c $(RAYLIB_LIBS)
 map-builder: build/map_builder
 edit-fps: map-builder
 	build/map_builder example/fps/assets example/fps/main/level.h
-edit-cart: map-builder
-	build/map_builder example/cart/assets example/cart/main/level.h
+edit-kart: map-builder
+	build/map_builder example/kart/assets example/kart/main/level.h
 
 # Examples
 
@@ -169,23 +169,23 @@ run-wasm: wasm
 	npx serve docs
 
 
-### cart example
-build/ray-cart: assets build/yari/libyari_raylib.a example/cart/main/main.c
-	$(CC) $(MAIN_CFLAGS) -o build/ray-cart example/cart/main/main.c $(MAIN_LIBS) $(RAYLIB_LIBS)
+### kart example
+build/ray-kart: assets build/yari/libyari_raylib.a example/kart/main/main.c
+	$(CC) $(MAIN_CFLAGS) -o build/ray-kart example/kart/main/main.c $(MAIN_LIBS) $(RAYLIB_LIBS)
 
-.PHONY: ray-cart run-cart
-ray-cart: build/ray-cart
-run-cart: ray-cart
-	build/ray-cart
+.PHONY: ray-kart run-kart
+ray-kart: build/ray-kart
+run-kart: ray-kart
+	build/ray-kart
 
-### SDL2 cart example
-build/sdl-cart: assets build/yari/libyari_sdl.a example/cart/main/main.c
-	$(CC) $(MAIN_CFLAGS) -o build/sdl-cart example/cart/main/main.c $(SDL_MAIN_LIBS) $(SDL2_LIBS)
+### SDL2 kart example
+build/sdl-kart: assets build/yari/libyari_sdl.a example/kart/main/main.c
+	$(CC) $(MAIN_CFLAGS) -o build/sdl-kart example/kart/main/main.c $(SDL_MAIN_LIBS) $(SDL2_LIBS)
 
-.PHONY: sdl-cart run-sdl-cart
-sdl-cart: build/sdl-cart
-run-sdl-cart: sdl-cart
-	build/sdl-cart
+.PHONY: sdl-kart run-sdl-kart
+sdl-kart: build/sdl-kart
+run-sdl-kart: sdl-kart
+	build/sdl-kart
 
 ## ESP32 examples
 
@@ -223,19 +223,19 @@ esp32-flash-monitor: esp32-flash
 esp32-clean:
 	cd example/fps && . $(ESP32_HOME)/export.sh && idf.py fullclean
 
-### cart example
-.PHONY: esp32-cart-build esp32-cart-flash esp32-cart-monitor esp32-cart-flash-monitor esp32-cart-clean
-esp32-cart-build: assets
-	cd example/cart && . $(ESP32_HOME)/export.sh && idf.py build && idf.py size
+### kart example
+.PHONY: esp32-kart-build esp32-kart-flash esp32-kart-monitor esp32-kart-flash-monitor esp32-kart-clean
+esp32-kart-build: assets
+	cd example/kart && . $(ESP32_HOME)/export.sh && idf.py build && idf.py size
 
-esp32-cart-flash: esp32-cart-build
-	cd example/cart && . $(ESP32_HOME)/export.sh && idf.py flash
+esp32-kart-flash: esp32-kart-build
+	cd example/kart && . $(ESP32_HOME)/export.sh && idf.py flash
 
-esp32-cart-monitor:
-	cd example/cart && . $(ESP32_HOME)/export.sh && idf.py monitor
+esp32-kart-monitor:
+	cd example/kart && . $(ESP32_HOME)/export.sh && idf.py monitor
 
-esp32-cart-flash-monitor: esp32-cart-flash
-	cd example/cart && . $(ESP32_HOME)/export.sh && idf.py monitor
+esp32-kart-flash-monitor: esp32-kart-flash
+	cd example/kart && . $(ESP32_HOME)/export.sh && idf.py monitor
 
-esp32-cart-clean:
-	cd example/cart && . $(ESP32_HOME)/export.sh && idf.py fullclean
+esp32-kart-clean:
+	cd example/kart && . $(ESP32_HOME)/export.sh && idf.py fullclean
