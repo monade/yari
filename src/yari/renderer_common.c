@@ -1,4 +1,40 @@
+#include <math.h>
 #include "renderer.h"
+#include "yari.h"
+
+// Clipping lives here once instead of duplicated per platform; each
+// platform only implements yr_fill_span (an unclipped horizontal run),
+// which lets it stay a tight, easily-optimized loop (e.g. the ESP32 backend
+// batches it into 32-bit writes).
+void YR_PERF_ATTR yr_draw_rectangle(int x, int y, int width, int height, yr_pixel_t color) {
+    if (width == 1 && height == 1) {
+        if ((unsigned)x < (unsigned)yr_screen_width() && (unsigned)y < (unsigned)yr_screen_height()) {
+            yr_fill_span(x, y, 1, color);
+        }
+        return;
+    }
+
+    if (width <= 0 || height <= 0) return;
+
+    int screen_w = yr_screen_width();
+    int screen_h = yr_screen_height();
+
+    if (x < 0) {
+        width += x;
+        x = 0;
+    }
+    if (y < 0) {
+        height += y;
+        y = 0;
+    }
+    if (x + width > screen_w) width = screen_w - x;
+    if (y + height > screen_h) height = screen_h - y;
+    if (width <= 0 || height <= 0) return;
+
+    for (int row = 0; row < height; row++) {
+        yr_fill_span(x, y + row, width, color);
+    }
+}
 
 void yr_draw_texture(
     int x,
@@ -48,10 +84,10 @@ void yr_draw_text(
 ) {
     int cursor_x = x;
     for (const char *p = text; *p; p++) {
-        char ch = *p;
-        if (ch < 32 || ch > 127) continue;
+        unsigned char ch = (unsigned char)*p;
+        if (ch < 32 || ch >= 128) continue;
 
-        yr_glyph_t g = font->glyphs[(unsigned char)ch - 32];
+        yr_glyph_t g = font->glyphs[ch - 32];
         int dst_x = cursor_x + (int)g.xoff;
         int dst_y = y + (int)g.yoff;
 
@@ -65,3 +101,204 @@ void yr_draw_text(
         cursor_x += (int)g.xadvance;
     }
 }
+
+size_t yr_get_text_length(const char *text, size_t len, const yr_font_t *font) {
+    if (len == 0) len = 256;
+    size_t res = 0;
+    for(size_t i=0; i<len; i++) {
+        unsigned char ch = (unsigned char)text[i];
+        if(ch == 0) break;
+        if(ch < 32 || ch >= 128) continue;
+        res += font->glyphs[ch-32].xadvance + font->glyphs[ch-32].xoff;
+    }
+    return res;
+}
+
+void yr_draw_line(int x0, int y0, int x1, int y1, int thickness, yr_pixel_t color) {
+    int size = thickness;
+    int sm = size/2;
+    int xv = x1-x0;
+    int yv = y1-y0;
+    if(x0 == x1) {
+        if(yv>0) {
+            yr_draw_rectangle(x0-sm, y0, size, yv, color);
+        } else {
+            yr_draw_rectangle(x1-sm, y1, size, -yv, color);
+        }
+        return;
+    }
+    if(y0 == y1) {
+        if(xv>0) {
+            yr_draw_rectangle(x0, y0-sm, xv, size, color);
+        } else {
+            yr_draw_rectangle(x1, y1-sm, -xv, size, color);
+        }
+        return;
+    }
+    int axv = xv > 0 ? xv : -xv;
+    int ayv = yv > 0 ? yv : -yv;
+
+    if (axv >= ayv) {
+        float m = (float)yv/xv;
+        int xs, ys, xe;
+        if (xv>0) {
+            xs = x0;
+            ys = y0;
+            xe = x1;
+        } else {
+            xs = x1;
+            ys = y1;
+            xe = x0;
+        }
+        for(int x=xs; x<xe; x++) {
+            int y = m*(x-xs);
+            yr_draw_rectangle(x-sm, y-sm+ys, size, size, color);
+        }
+    } else {
+        float m = (float)xv/yv;
+        int xs, ys, ye;
+        if (yv>0) {
+            xs = x0;
+            ys = y0;
+            ye = y1;
+        } else {
+            xs = x1;
+            ys = y1;
+            ye = y0;
+        }
+        for(int y=ys; y<ye; y++) {
+            int x = m*(y-ys);
+            yr_draw_rectangle(x-sm+xs, y-sm, size, size, color);
+        }
+    }
+}
+
+void yr_draw_rectangle_line(int x, int y, int width, int height, int thickness, yr_pixel_t color) {
+    yr_draw_line(x, y, x+width, y, thickness, color);
+    yr_draw_line(x, y, x, y+height, thickness, color);
+    yr_draw_line(x+width, y, x+width, y+height, thickness, color);
+    yr_draw_line(x, y+height, x+width, y+height, thickness, color);
+}
+
+void yr_draw_circle(int x, int y, int radius, yr_pixel_t color) {
+    int r2 = radius*radius;
+    for(int i=-radius; i<radius; i++) {
+        // x2+y2 = r2
+        int y0 = sqrtf(r2 - i*i);
+        yr_draw_rectangle(x+i,y-y0, 1, y0*2, color);
+    }
+}
+
+void yr_draw_circle_line(int x, int y, int radius, int thickness, yr_pixel_t color) {
+    int sm = thickness/2;
+    int r2 = radius*radius;
+    int oy=0;
+    for(int i=-radius; i<=radius; i++) {
+        int y0 = sqrtf(r2 - i*i);
+        int dy = y0 - oy;
+        if (dy>=0) {
+            yr_draw_rectangle(x+i-sm, y-y0-sm, thickness, dy + thickness, color);
+            yr_draw_rectangle(x+i-sm, y+oy-sm, thickness, dy + thickness, color);
+        } else {
+            yr_draw_rectangle(x+i-sm, y-oy-sm, thickness, -dy + thickness, color);
+            yr_draw_rectangle(x+i-sm, y+y0-sm, thickness, -dy + thickness, color);
+        }
+        oy = y0;
+    }
+}
+
+#define YR_SAME_SIGN(x,y) ((((x)>=0) && ((y)>=0)) || (((x)<0) && ((y)<0)))
+static inline bool yr_inside_triangle(int x1, int y1, int x2, int y2, int x3, int y3, int xp, int yp)
+{
+    int det = ((x1 - x3)*(y2 - y3) - (x2 - x3)*(y1 - y3));
+    int v1  = ((y2 - y3)*(xp - x3) + (x3 - x2)*(yp - y3));
+    int v2  = ((y3 - y1)*(xp - x3) + (x1 - x3)*(yp - y3));
+    int v3 = det - v1 - v2;
+    return (
+               (YR_SAME_SIGN(v1, det) || v1 == 0) &&
+               (YR_SAME_SIGN(v2, det) || v2 == 0) &&
+               (YR_SAME_SIGN(v3, det) || v3 == 0)
+           );
+}
+
+static inline void yr_normalize_triangle(int x0, int y0, int x1, int y1, int x2, int y2, int *lx, int *hx, int *ly, int *hy)
+{
+    *lx = x0;
+    *hx = x0;
+    if (*lx > x1) *lx = x1;
+    if (*lx > x2) *lx = x2;
+    if (*hx < x1) *hx = x1;
+    if (*hx < x2) *hx = x2;
+    if (*lx < 0) *lx = 0;
+
+    *ly = y0;
+    *hy = y0;
+    if (*ly > y1) *ly = y1;
+    if (*ly > y2) *ly = y2;
+    if (*hy < y1) *hy = y1;
+    if (*hy < y2) *hy = y2;
+    if (*ly < 0) *ly = 0;
+}
+
+void yr_draw_triangle(int x0, int y0, int x1, int y1, int x2, int y2, yr_pixel_t color) {
+    int lx, hx, ly, hy;
+    yr_normalize_triangle(x0, y0, x1, y1, x2, y2, &lx, &hx, &ly, &hy);
+
+    for (int y = ly; y <= hy; ++y) {
+        for (int x = lx; x <= hx; ++x) {
+            if (yr_inside_triangle(x0, y0, x1, y1, x2, y2, x, y)) {
+                yr_draw_pixel(x, y, color);
+            }
+        }
+    }
+}
+
+void yr_draw_triangle_line(int x0, int y0, int x1, int y1, int x2, int y2, int thickness, yr_pixel_t color) {
+    yr_draw_line(x0, y0, x1, y1, thickness, color);
+    yr_draw_line(x1, y1, x2, y2, thickness, color);
+    yr_draw_line(x2, y2, x0, y0, thickness, color);
+}
+
+#ifdef YR_MULTITHREAD
+// Draws background and casts walls for a range of screen columns. Units are
+// ray_res-wide columns; the last unit absorbs any screen-width remainder.
+// Transparent-wall hits get appended straight into ctx->_sprites, safely
+// shared between chunks via yr__sprites_lock/unlock (implemented per
+// platform in platform/esp32/multithread.c or platform/pthread/multithread.c).
+static void yr_draw_walls_half_job(void *_ctx, int start, int end) {
+    YrContext *ctx = (YrContext *)_ctx;
+    int rr = ctx->ray_res;
+    int total = ctx->screen_width / rr;
+    int x0 = start * rr;
+    int x1 = (end == total) ? ctx->screen_width : end * rr;
+    yr__draw_background_range(ctx, x0, x1);
+    yr__draw_walls_range(ctx, x0, x1);
+}
+
+// Draws the already-sorted sprite list for a range of screen columns. Only
+// safe to run in parallel because by this point ctx->_sprites is fully
+// built and read-only - each chunk only ever writes its own disjoint
+// framebuffer columns.
+static void yr_draw_sprites_half_job(void *_ctx, int start, int end) {
+    YrContext *ctx = (YrContext *)_ctx;
+    int rr = ctx->ray_res;
+    int total = ctx->screen_width / rr;
+    int x0 = start * rr;
+    int x1 = (end == total) ? ctx->screen_width : end * rr;
+    yr__draw_sprites_range(ctx, x0, x1);
+}
+
+void yr__draw_game_multithread(YrContext *ctx) {
+    int total = ctx->screen_width / ctx->ray_res;
+
+    yr_run_split(yr_draw_walls_half_job, ctx, total);
+
+    yr__entities_prep(ctx);
+
+    yr_run_split(yr_draw_sprites_half_job, ctx, total);
+
+    yr_da_shrink(&ctx->_sprites);
+    ctx->_sprites.length = 0;
+    yr__update_entities(ctx);
+}
+#endif // YR_MULTITHREAD

@@ -2,10 +2,40 @@
 #define YR_COLORS_H
 #include <stdint.h>
 
+// YR_MONOCROME simulates on desktop the dithered 1bpp path the ESP32 backend
+// uses for monochrome panels: it's plain YR_L8 everywhere in the engine
+// (same type, same palette) - only the backend's render/upload step
+// thresholds it to black/white, so nothing else needs to know about it.
+#if defined(YR_MONOCROME) && !defined(YR_L8)
+#define YR_L8
+#endif
 
+// ESP32 defaults to RGB565 unless YR_L8 was chosen (desktop/web default
+// to ARGB32 below). Defined as a real macro, not just branched on here, so
+// every other `#ifdef YR_RGB565` check stays consistent, including
+// generated headers like assets.h.
+#if defined(ESP32) && !defined(YR_L8) && !defined(YR_RGB565)
+#define YR_RGB565
+#endif
 
-#ifdef COLOR_565 // 16-bit color in 5-6-5 format
+// Ordered (Bayer 4x4) dithering for every monochrome blit path - the ESP32
+// hardware panel and the YR_MONOCROME desktop simulation both call this.
+static const uint8_t yr_bayer4x4[4][4] = {
+    { 0,  8,  2, 10},
+    {12,  4, 14,  6},
+    { 3, 11,  1,  9},
+    {15,  7, 13,  5},
+};
+
+static inline int yr_mono_dither_lit(uint8_t luma, int x, int y) {
+    return luma > yr_bayer4x4[y & 3][x & 3] * 17;
+}
+
+#if defined(YR_RGB565) // 16-bit color in 5-6-5 format
 typedef uint16_t yr_pixel_t;
+
+#define YR_COLOR(r, g, b) ((yr_pixel_t)(((int)((r)*31) << 11) | ((int)((g)*63) << 5) | (int)((b)*31))) 
+
 #define YR_EMPTY_PIXEL 0
 #define YR_BLACK       0x0001
 #define YR_WHITE       0xFFFF
@@ -29,29 +59,95 @@ typedef uint16_t yr_pixel_t;
 #define YR_BROWN       0xA145
 #define YR_SKY_BLUE    0x865D
 
-static inline yr_pixel_t yr_color_brightness(yr_pixel_t color, float factor) {
-    if (factor > 1.0f) factor = 1.0f;
-    else if (factor < -1.0f) factor = -1.0f;
+static inline yr_pixel_t yr_color_darken(yr_pixel_t color, int scale) {
+    if (scale <= 0) return 0;
+    if (scale >= 256) return color;
 
-    float red = color >> 11;
-    float green = (color >> 5) & 0x3F;
-    float blue = color & 0x1F;
+    int red = color >> 11;
+    int green = (color >> 5) & 0x3F;
+    int blue = color & 0x1F;
+
+    red = (red * scale + 128) >> 8;
+    green = (green * scale) >> 8;
+    blue = (blue * scale + 128) >> 8;
+
+    return (red << 11) | (green << 5) | blue;
+}
+
+static inline yr_pixel_t yr_color_brightness(yr_pixel_t color, float factor) {
+    int red, green, blue;
 
     if (factor < 0.0f) {
-        factor = 1.0f + factor;
-        red *= factor;
-        green *= factor;
-        blue *= factor;
+        if (factor <= -1.0f) return 0;
+
+        int scale = (int)((1.0f + factor) * 256.0f);
+        return yr_color_darken(color, scale);
     } else {
-        red = (31 - red) * factor + red;
-        green = (63 - green) * factor + green;
-        blue = (31 - blue) * factor + blue;
+        if (factor >= 1.0f) return YR_WHITE;
+        red = color >> 11;
+        green = (color >> 5) & 0x3F;
+        blue = color & 0x1F;
+        int scale = (int)(factor * 256.0f);
+        red += ((31 - red) * scale) >> 8;
+        green += ((63 - green) * scale) >> 8;
+        blue += ((31 - blue) * scale) >> 8;
     }
 
-    return ((int)red << 11) | ((int)green << 5) | (int)blue;
+    return (red << 11) | (green << 5) | blue;
+}
+#elif defined(YR_L8) // 8-bit grayscale; dithered to 1bpp only at the final display blit
+typedef uint8_t yr_pixel_t;
+
+#define YR_COLOR(r, g, b) ((yr_pixel_t)(int)(((r) * 0.299f + (g) * 0.587f + (b) * 0.114f) * 255))
+
+#define YR_EMPTY_PIXEL 0
+#define YR_BLACK       1
+#define YR_WHITE       255
+#define YR_RED         76
+#define YR_GREEN       150
+#define YR_BLUE        29
+#define YR_YELLOW      226
+#define YR_PURPLE      105
+#define YR_ORANGE      151
+#define YR_CYAN        179
+#define YR_PINK        212
+#define YR_GRAY        128
+#define YR_SILVER      192
+#define YR_MAROON      38
+#define YR_DARK_RED    42
+#define YR_DARK_GREEN  75
+#define YR_DARK_BLUE   16
+#define YR_OLIVE       113
+#define YR_TEAL        90
+#define YR_NAVY        15
+#define YR_BROWN       79
+#define YR_SKY_BLUE    188
+
+static inline yr_pixel_t yr_color_darken(yr_pixel_t color, int scale) {
+    if (scale <= 0) return 0;
+    if (scale >= 256) return color;
+
+    return (yr_pixel_t)((color * scale) >> 8);
+}
+
+static inline yr_pixel_t yr_color_brightness(yr_pixel_t color, float factor) {
+    if (factor < 0.0f) {
+        if (factor <= -1.0f) return 0;
+
+        int scale = (int)((1.0f + factor) * 256.0f);
+        return yr_color_darken(color, scale);
+    } else {
+        if (factor >= 1.0f) return YR_WHITE;
+
+        int scale = (int)(factor * 256.0f);
+        return (yr_pixel_t)(color + (((255 - color) * scale) >> 8));
+    }
 }
 #else // 32-bit color with alpha, in ARGB format
 typedef uint32_t yr_pixel_t;
+
+#define YR_COLOR(r, g, b) ((yr_pixel_t)(((uint32_t)((r)*255) << 24) | ((uint32_t)((g)*255) << 16) | ((uint32_t)((b)*255) << 8) | 0xFF))
+
 #define YR_EMPTY_PIXEL 0xFF
 #define YR_BLACK       0x000001FF
 #define YR_WHITE       0xFFFFFFFF
@@ -75,58 +171,46 @@ typedef uint32_t yr_pixel_t;
 #define YR_BROWN       0xA52A2AFF
 #define YR_SKY_BLUE    0x87CEEBFF
 
+static inline yr_pixel_t yr_color_darken(yr_pixel_t color, int scale) {
+    if (scale <= 0) return color & 0xFF;
+    if (scale >= 256) return color;
+
+    int red = color >> 24;
+    int green = (color >> 16) & 0xFF;
+    int blue = (color >> 8) & 0xFF;
+
+    red = (red * scale + 128) >> 8;
+    green = (green * scale + 128) >> 8;
+    blue = (blue * scale + 128) >> 8;
+
+    return ((uint32_t)red << 24) | ((uint32_t)green << 16) | ((uint32_t)blue << 8) | (color & 0xFF);
+}
+
 static inline yr_pixel_t yr_color_brightness(yr_pixel_t color, float factor) {
     if (factor > 1.0f) factor = 1.0f;
     else if (factor < -1.0f) factor = -1.0f;
 
-    float red = color >> 24;
-    float green = (color >> 16) & 0xFF;
-    float blue = (color >> 8) & 0xFF;
+    float red, green, blue;
 
     if (factor < 0.0f) {
-        factor = 1.0f + factor;
-        red *= factor;
-        green *= factor;
-        blue *= factor;
+        int scale = (int)((1.0f + factor) * 256.0f);
+        return yr_color_darken(color, scale);
     } else {
+        red = color >> 24;
+        green = (color >> 16) & 0xFF;
+        blue = (color >> 8) & 0xFF;
         red = (255 - red) * factor + red;
         green = (255 - green) * factor + green;
         blue = (255 - blue) * factor + blue;
     }
 
-    return ((int)red << 24) | ((int)green << 16) | ((int)blue << 8) | 0xFF;
+    return ((uint32_t)red << 24) | ((uint32_t)green << 16) | ((uint32_t)blue << 8) | 0xFF;
 }
 #endif
 
-
-extern yr_pixel_t yr_color_map[];
-
-enum wall_color {
-    YR_WALL_BLACK = 128,
-    YR_WALL_WHITE,
-    YR_WALL_RED,
-    YR_WALL_GREEN,
-    YR_WALL_BLUE,
-    YR_WALL_YELLOW,
-    YR_WALL_PURPLE,
-    YR_WALL_ORANGE,
-    YR_WALL_CYAN,
-    YR_WALL_PINK,
-    YR_WALL_GRAY,
-    YR_WALL_SILVER,
-    YR_WALL_MAROON,
-    YR_WALL_DARK_RED,
-    YR_WALL_DARK_GREEN,
-    YR_WALL_DARK_BLUE,
-    YR_WALL_OLIVE,
-    YR_WALL_TEAL,
-    YR_WALL_NAVY,
-    YR_WALL_BROWN,
-    YR_WALL_SKY_BLUE
-};
-
 #ifdef YARI_NO_PREFIX
 #define color_brightness yr_color_brightness
+#define color_darken yr_color_darken
 #define pixel_t yr_pixel_t
 #endif
 
