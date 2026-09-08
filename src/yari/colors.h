@@ -146,7 +146,7 @@ static inline yr_pixel_t yr_color_brightness(yr_pixel_t color, float factor) {
 #else // 32-bit color with alpha, in ARGB format
 typedef uint32_t yr_pixel_t;
 
-#define YR_COLOR(r, g, b) ((yr_pixel_t)(((int)((r)*255) << 24) | ((int)((g)*255) << 16) | ((int)((b)*255) << 8) | 0xFF)) 
+#define YR_COLOR(r, g, b) ((yr_pixel_t)(((uint32_t)((r)*255) << 24) | ((uint32_t)((g)*255) << 16) | ((uint32_t)((b)*255) << 8) | 0xFF))
 
 #define YR_EMPTY_PIXEL 0xFF
 #define YR_BLACK       0x000001FF
@@ -183,7 +183,7 @@ static inline yr_pixel_t yr_color_darken(yr_pixel_t color, int scale) {
     green = (green * scale + 128) >> 8;
     blue = (blue * scale + 128) >> 8;
 
-    return (red << 24) | (green << 16) | (blue << 8) | (color & 0xFF);
+    return ((uint32_t)red << 24) | ((uint32_t)green << 16) | ((uint32_t)blue << 8) | (color & 0xFF);
 }
 
 static inline yr_pixel_t yr_color_brightness(yr_pixel_t color, float factor) {
@@ -204,7 +204,7 @@ static inline yr_pixel_t yr_color_brightness(yr_pixel_t color, float factor) {
         blue = (255 - blue) * factor + blue;
     }
 
-    return ((int)red << 24) | ((int)green << 16) | ((int)blue << 8) | 0xFF;
+    return ((uint32_t)red << 24) | ((uint32_t)green << 16) | ((uint32_t)blue << 8) | 0xFF;
 }
 #endif
 

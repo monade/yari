@@ -351,8 +351,8 @@ void update_boss(YrContext *ctx, YrEntity *self, size_t index) {
         Vector2 projectile_pos = Vector2Add(self->pos, Vector2Scale(dir, 0.1f));
         Entity e = create_boss_projectile_level1_pos(projectile_pos, NULL);
         ProjectileData pd = {.dir = dir, .damage = data->damage};
-        create_entity_ex(ctx, e, &pd);
         start_animation_once(&self->animation, data->attack_anim);
+        create_entity_ex(ctx, e, &pd);
     }
 }
 

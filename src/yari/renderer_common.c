@@ -84,10 +84,10 @@ void yr_draw_text(
 ) {
     int cursor_x = x;
     for (const char *p = text; *p; p++) {
-        char ch = *p;
-        if (ch < 32) continue;
+        unsigned char ch = (unsigned char)*p;
+        if (ch < 32 || ch >= 128) continue;
 
-        yr_glyph_t g = font->glyphs[(unsigned char)ch - 32];
+        yr_glyph_t g = font->glyphs[ch - 32];
         int dst_x = cursor_x + (int)g.xoff;
         int dst_y = y + (int)g.yoff;
 
@@ -106,9 +106,9 @@ size_t yr_get_text_length(const char *text, size_t len, const yr_font_t *font) {
     if (len == 0) len = 256;
     size_t res = 0;
     for(size_t i=0; i<len; i++) {
-        char ch = text[i];
+        unsigned char ch = (unsigned char)text[i];
         if(ch == 0) break;
-        if(ch<32) continue;
+        if(ch < 32 || ch >= 128) continue;
         res += font->glyphs[ch-32].xadvance + font->glyphs[ch-32].xoff;
     }
     return res;
