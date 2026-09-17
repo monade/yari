@@ -49,9 +49,6 @@ YrAnimationStack// dynamic array (stack) of YrAnimationData; drives entity->text
 ```c
 YR_MAX_RENDER_DIST     // max raycast distance in map units (default 20.0, overridable)
 YR_TEXTURE_SIZE        // wall/floor/ceiling/sprite texture size in pixels (default 64, overridable)
-YR_CMSK_NONE           // collision mask: matches nothing (0)
-YR_CMSK_WALL           // collision mask: walls only (1)
-YR_CMSK_ALL            // collision mask: everything (-1)
 
 // Color mode selection (define before including yari.h)
 YR_RGB565              // 16-bit 5-6-5 pixels (auto-defined on ESP32 unless YR_L8 is set)
@@ -157,6 +154,20 @@ desktop simulation, but are also available for custom dither effects in game cod
 ## Physics & Collisions (`physics.h`)
 
 ```c
+// Collision mask layers
+YR_CMSK_NONE           // no collision layers (0)
+YR_CMSK_WALL           // "wall" layer (1) — first bit of the mask
+YR_CMSK_ALL            // all collision layers (-1, all bits set)
+/*
+Define your own collision layers here as bitmasks
+e.g.
+#define YR_CMSK_ENEMY  (1 << 1)
+#define YR_CMSK_COLLECTIBLE (1 << 2)
+#define YR_CMSK_PLAYER (YR_CMSK_ALL & ~YR_CMSK_COLLECTIBLE)
+*/
+```
+
+```c
 Vector2 yr_move(Vector2 subject_position, Vector2 subject_direction, enum YrMovementDirection direction, float movement_speed); // Moves a point using delta time; direction is YR_FORWARD/BACK/LEFT/RIGHT
 Vector2 yr_rotate(Vector2 vector, enum YrRotationDirection direction, float rotation_speed); // Rotates a vector using delta time; direction is YR_CLOCKWISE/COUNTERCLOCKWISE
 
@@ -218,8 +229,8 @@ bool    yr_timer_is_started(const YrTimer *timer);       // True if the timer ha
 
 ```c
 void yr_start_animation(YrAnimationStack *stack, YrAnimation a, float pop_after); // Pushes animation `a` ({frames, frame_count, duration}); pop_after <= 0 loops forever
-void yr_start_loop_animation(stack, a);         // [macro] Pushes a looping animation (pop_after = 0)
-void yr_start_animation_once(stack, a);         // [macro] Pushes a one-shot animation that auto-pops after a.duration * a.frame_count seconds
+void yr_start_loop_animation(YrAnimationStack *stack, YrAnimation a);         // [macro] Pushes a looping animation (pop_after = 0)
+void yr_start_animation_once(YrAnimationStack *stack, YrAnimation a);         // [macro] Pushes a one-shot animation that auto-pops after a.duration * a.frame_count seconds
 int  yr_get_animation_texture(YrAnimationStack *animation); // Advances the top animation, pops on expiry (resuming the one beneath), returns its current frame's texture id, or -1 if the stack is empty
 ```
 
@@ -260,14 +271,14 @@ enum lay_dis {       // Coordinate space
 ### Layout-aware drawing (variadic macros)
 
 ```c
-yr_draw_text_ex(txt, font, ...);       // [macro → yr__draw_text_ex] Variadic struct init
-yr_draw_texture_ex(texture, txw, txh, ...); // [macro → yr__draw_texture_ex] Variadic struct init
+void yr_draw_text_ex(const char *txt, const yr_font_t *font, ...);       // [macro → yr__draw_text_ex] Variadic struct init (struct yr_dtxt fields)
+void yr_draw_texture_ex(const yr_pixel_t *texture, size_t txw, size_t txh, ...); // [macro → yr__draw_texture_ex] Variadic struct init (struct yr_dtex fields)
 ```
 
 The variadic params fill a `struct yr_dtxt` / `struct yr_dtex`:
 
 ```c
-struct yr_dtxt {              // text layout params
+struct yr_dtxt {               // text layout params
     yr_pixel_t color;
     enum lay_pos align;        //  alignment anchor (YR_LAY_CENTER, ...)
     enum lay_dis display;      //  YR_LAY_SCREEN (use x,y) or YR_LAY_NORM (use nx,ny)
@@ -279,15 +290,15 @@ struct yr_dtxt {              // text layout params
     };
 };
 
-struct yr_dtex {              // texture layout params
+struct yr_dtex {                // texture layout params
     enum lay_pos align;
-    enum lay_dis display;
-    int width, height;         //  draw size (0 = auto from texture, single-0 = proportional)
+    enum lay_dis display;       // YR_LAY_SCREEN (use x,y) or YR_LAY_NORM (use nx,ny)
+    int width, height;          //  draw size (0 = auto from texture, single-0 = proportional)
     struct {int width, height;} box;  //  bounding box (defaults to screen size)
-    bool draw_empty;           //  if false, skips transparent pixels (default)
+    bool draw_empty;            //  if false, skips transparent pixels (default)
     union {
-        struct {float nx, ny;};
-        struct {int x, y;};
+        struct {float nx, ny;}; // normalized 0..1 position (YR_LAY_NORM)
+        struct {int x, y;};     // absolute pixel position (YR_LAY_SCREEN)
     };
 };
 ```
@@ -315,7 +326,7 @@ yr_draw_texture_ex(tex, 64, 64, .align=YR_LAY_CENTER,
 
 ```c
 size_t yr_create_entity_ex(YrContext *ctx, YrEntity e, void *data); // Runs e.init(&e, data) if set, inserts e into ctx->entities (a YrEntityMap), returns its new stable id
-yr_create_entity(state, e);                              // [macro] yr_create_entity_ex(state, e, NULL)
+size_t yr_create_entity(YrContext *state, YrEntity e);                              // [macro] yr_create_entity_ex(state, e, NULL)
 void   yr_remove_entity(YrContext *ctx, size_t id);  // Runs entity->cleanup (if set), frees its animation stack, then removes the entity with this id
 void   yr_clear_entities(YrContext *ctx);  // Remove and free all entities calling entity->cleanup (if set)
 size_t yr_get_entity_id(YrEntity *e);                     // Recovers the id of a live entity pointer obtained from ctx->entities
@@ -327,21 +338,21 @@ size_t yr_get_entity_id(YrEntity *e);                     // Recovers the id of 
 
 ## Dynamic Array (`da.h`)
 
-Generic macros over any struct shaped `{ Type *data; size_t length; size_t capacity; }` (e.g. `YrAnimationStack`). `yr_Hm`/`yr_Hs` (below) extend this same layout with a hash index, so read-only `yr_da_foreach` also works over hash maps and sets - but use the `yr_hm_*`/`yr_hs_*` mutators, not `yr_da_append`/`yr_da_remove_*` directly, or the hash index falls out of sync.
+Generic macros over any struct shaped `{ Type *data; size_t length; size_t capacity; }` (e.g. `YrAnimationStack`), referred to below as `DynArray *da`. `yr_Hm`/`yr_Hs` (below) extend this same layout with a hash index, so read-only `yr_foreach` also works over hash maps and sets - but use the `yr_hm_*`/`yr_hs_*` mutators, not `yr_da_append`/`yr_da_remove_*` directly, or the hash index falls out of sync.
 
 `YR_DA_INIT_CAPACITY` (4), `YR_DA_GROWTH_FACTOR` (1.5) and `YR_DA_SHRINK_FACTOR` (2) are `#define`d with `#ifndef` guards, so `#define` them before including `da.h`/`yari.h` to override.
 
 ```c
-YR_ARRAY_LEN(array);                    // Number of elements in a fixed-size C array
-yr_da_reserve(da, expected_capacity);   // Grows da->data to fit at least expected_capacity items
-yr_da_append(da, item);                 // Appends item, growing storage as needed
-yr_da_pop(da);                          // Removes the last element of the array and return a pointer to it (it does not auto-shrink the capacity)
-yr_da_remove_unordered(da, idx);        // Removes item at idx by swapping in the last element - O(1), reorders; auto-shrinks storage if underfilled
-yr_da_remove(da, idx, del);             // Removes `del` items at idx, preserving order (memmove); auto-shrinks storage if underfilled
-yr_da_shrink(da);                       // Shrinks capacity by YR_DA_GROWTH_FACTOR (never below YR_DA_INIT_CAPACITY or length + 1); called automatically by the removals above
-yr_da_foreach(da, var);                 // [macro] for-loop over da->data; var is a pointer to each element
-yr_da_foreach_idx(da, idx);             // [macro] for-loop with size_t idx over [0, da->length)
-yr_da_free(da);                         // Frees storage and resets length/capacity to 0
+size_t YR_ARRAY_LEN(array);                                   // Number of elements in a fixed-size C array
+void   yr_da_reserve(DynArray *da, size_t expected_capacity); // Grows da->data to fit at least expected_capacity items
+void   yr_da_append(DynArray *da, Type item);                 // Appends item, growing storage as needed
+Type  *yr_da_pop(DynArray *da);                               // Removes the last element of the array and return a pointer to it (it does not auto-shrink the capacity)
+void   yr_da_remove_unordered(DynArray *da, size_t idx);      // Removes item at idx by swapping in the last element - O(1), reorders; auto-shrinks storage if underfilled
+void   yr_da_remove(DynArray *da, size_t idx, size_t del);    // Removes `del` items at idx, preserving order (memmove); auto-shrinks storage if underfilled
+void   yr_da_shrink(DynArray *da);                            // Shrinks capacity by YR_DA_GROWTH_FACTOR (never below YR_DA_INIT_CAPACITY or length + 1); called automatically by the removals above
+void   yr_da_free(DynArray *da);                              // Frees storage and resets length/capacity to 0
+yr_foreach(DynArray *da, Type *var) { ... }                   // [macro] for-loop over da->data; var is a pointer to each element
+yr_foreach_idx(DynArray *da, size_t idx) { ... }              // [macro] for-loop with size_t idx over [0, da->length)
 ```
 
 ## Hash Map & Hash Set (`ht.h`)
@@ -349,28 +360,26 @@ yr_da_free(da);                         // Frees storage and resets length/capac
 Generic open-addressing hash map and set, included by `yari.h` (used internally for `ctx->entities`). `const char *`/`char *` keys (map) or values (set) are hashed/compared by content and heap-copied/freed internally; any other type is hashed/compared by raw bytes.
 
 ```c
-yr_Hm(key_t, val_t)                // [type] anonymous hash map struct: { struct { key_t key; val_t value; } *data; length; capacity; ... }
-yr_hm_declare(name, key_t, val_t); // [macro] typedefs a named yr_Hm(key_t, val_t)
-yr_hm_set(hm, key, val);           // Inserts key -> val, or updates val if key already exists
-void *yr_hm_try(hm, key);          // Pointer to the value for key, or NULL if absent
-bool  yr_hm_has(hm, key);          // True if key is present
-val_t yr_hm_get(hm, key);          // Value for key, or {0} if absent (use yr_hm_try when absence matters)
-val_t *yr_hm_remove(hm, key);      // Removes key, returns a pointer to its (relocated) value, or NULL if absent
-yr_hm_free(hm);                    // Frees the map; does not free keys/values you own
-yr_hm_shrink(hm);                  // Shrinks storage to fit length (fully frees if empty)
+yr_Hm(key_t, val_t)                                                   // [type] anonymous hash map struct: { struct { key_t key; val_t value; } *data; length; capacity; ... }
+void   yr_hm_declare(name, key_t, val_t);                             // [macro] typedefs a named yr_Hm(key_t, val_t)
+void   yr_hm_set(yr_Hm(key_t, val_t) *hm, key_t key, val_t val);      // Inserts key -> val, or updates val if key already exists
+val_t *yr_hm_try(yr_Hm(key_t, val_t) *hm, key_t key);                 // Pointer to the value for key, or NULL if absent
+bool   yr_hm_has(yr_Hm(key_t, val_t) *hm, key_t key);                 // True if key is present
+val_t  yr_hm_get(yr_Hm(key_t, val_t) *hm, key_t key);                 // Value for key, or {0} if absent (use yr_hm_try when absence matters)
+val_t *yr_hm_remove(yr_Hm(key_t, val_t) *hm, key_t key);              // Removes key, returns a pointer to its (relocated) value, or NULL if absent
+void   yr_hm_free(yr_Hm(key_t, val_t) *hm);                           // Frees the map; does not free keys/values you own
 
-yr_Hs(val_t)                       // [type] anonymous hash set struct: { val_t *data; length; capacity; ... }
-yr_hs_declare(name, val_t);        // [macro] typedefs a named yr_Hs(val_t)
-bool yr_hs_has(set, val);          // True if val is present
-yr_hs_add(set, val);               // Adds val if not already present
-bool yr_hs_remove(set, val);       // Removes val, returns true if it was present
-yr_foreach(set, v);                // [macro] for-loop over entries; kv->key / kv->value or value for sets
-yr_hs_cat(set, other_set);         // Adds every value of other_set into set
-yr_hs_cat_da(set, da);             // Adds every value of a dynamic array into set
-yr_hs_sub(set, other_set);         // Removes every value of other_set from set
-yr_hs_sub_da(set, da);             // Removes every value of a dynamic array from set
-yr_hs_to_da(set, da);              // Overwrites da with the set's values
-yr_da_to_hs(da, set);              // Overwrites set with the array's values
-yr_hs_free(set);                   // Frees the set
-yr_hs_shrink(set);                 // Shrinks storage to fit length (fully frees if empty)
+yr_Hs(val_t)                                                          // [type] anonymous hash set struct: { val_t *data; length; capacity; ... }
+void   yr_hs_declare(name, val_t);                                    // [macro] typedefs a named yr_Hs(val_t)
+bool   yr_hs_has(yr_Hs(val_t) *set, val_t val);                       // True if val is present
+void   yr_hs_add(yr_Hs(val_t) *set, val_t val);                       // Adds val if not already present
+bool   yr_hs_remove(yr_Hs(val_t) *set, val_t val);                    // Removes val, returns true if it was present
+void   yr_hs_cat(yr_Hs(val_t) *set, yr_Hs(val_t) *other_set);         // Adds every value of other_set into set
+void   yr_hs_cat_da(yr_Hs(val_t) *set, DynArray *da);                 // Adds every value of a dynamic array into set
+void   yr_hs_sub(yr_Hs(val_t) *set, yr_Hs(val_t) *other_set);         // Removes every value of other_set from set
+void   yr_hs_sub_da(yr_Hs(val_t) *set, DynArray *da);                 // Removes every value of a dynamic array from set
+void   yr_hs_to_da(yr_Hs(val_t) *set, DynArray *da);                  // Overwrites da with the set's values
+void   yr_da_to_hs(DynArray *da, yr_Hs(val_t) *set);                  // Overwrites set with the array's values
+void   yr_hs_free(yr_Hs(val_t) *set);                                 // Frees the set
+yr_foreach(yr_Hs(val_t) *set, val_t *v) { ... }                       // [macro] for-loop over entries; kv->key / kv->value or value for sets
 ```
