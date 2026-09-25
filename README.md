@@ -329,7 +329,7 @@ shared across desktop backends and embedded targets.
 | `texture_id` | index inside `assets_map` |
 | `kind` | user-defined entity kind id, set by the map builder (`YR_KIND_*`) or game code |
 | `dist` | distance from the player, maintained by the renderer |
-| `vdiv`, `hdiv` | vertical/horizontal sprite size reduction |
+| `vscale`, `hscale` | vertical/horizontal sprite scale (0.0 = normal, < 0.0 = smaller, > 0.0 = larger) |
 | `vmove` | perspective vertical offset |
 | `disabled` | if `true`, the entity is skipped |
 | `entity_data` | user-defined pointer |

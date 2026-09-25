@@ -81,8 +81,8 @@ typedef struct {
     char name[ENTITY_NAME_SIZE];
     Vector2 pos;
     int asset_index;
-    float vdiv;
-    float hdiv;
+    float vscale;
+    float hscale;
     float vmove;
     bool disabled;
     bool exported;
@@ -345,8 +345,8 @@ typedef struct {
 
     bool cols_edit;
     bool rows_edit;
-    bool vdiv_edit;
-    bool hdiv_edit;
+    bool vscale_edit;
+    bool hscale_edit;
     bool vmove_edit;
     bool threshold_edit;
     bool entity_name_edit;
@@ -371,13 +371,13 @@ typedef struct {
     char brush_wall_slide_x_text[16];
     char brush_wall_slide_y_text[16];
 
-    float brush_vdiv;
-    float brush_hdiv;
+    float brush_vscale;
+    float brush_hscale;
     float brush_vmove;
     float brush_collision_threshold;
     uint32_t brush_collision_mask;
-    char brush_vdiv_text[32];
-    char brush_hdiv_text[32];
+    char brush_vscale_text[32];
+    char brush_hscale_text[32];
     char brush_vmove_text[32];
     char brush_threshold_text[32];
     char brush_entity_name[ENTITY_NAME_SIZE];
@@ -1070,11 +1070,11 @@ static float clamp_float(float value, float min, float max) {
 // The scale is latched once, before any user resize, from the window's real
 // client rect (the true surface), so it never depends on raylib's own
 // size reporting.
+
+#ifdef _WIN32
 static bool window_size_is_physical = false;
 static bool dpi_scale_latched = false;
 static float window_dpi_scale = 1.0f;
-
-#ifdef _WIN32
 // The real client rect is the one thing that is always the actual GL
 // surface, whatever raylib's bookkeeping says. winuser.h is not reliably
 // available in this translation unit (it is suppressed by the NOGDI/NOUSER
@@ -1184,8 +1184,8 @@ static void fit_camera(App *app, Rectangle map_bounds) {
 static bool app_is_editing(const App *app) {
     return app->cols_edit ||
         app->rows_edit ||
-        app->vdiv_edit ||
-        app->hdiv_edit ||
+        app->vscale_edit ||
+        app->hscale_edit ||
         app->vmove_edit ||
         app->threshold_edit ||
         app->entity_name_edit ||
@@ -1816,7 +1816,7 @@ static int animation_index_by_name(const App *app, const char *name) {
 }
 
 // Names the entity (or "N entities") whose properties draw_sidebar is currently editing,
-// for undo/redo labels like "change enemy_anim vdiv".
+// for undo/redo labels like "change enemy_anim vscale".
 static const char *entity_edit_subject(App *app) {
     static char label[32];
     if (app->selection_kind == SELECTION_ENTITY && app->selected_entities.length > 1) {
@@ -1862,8 +1862,8 @@ static void load_entity_fields_into_editor(App *app, int entity_index) {
     app->editing_wall_x = NO_SELECTION;
     app->editing_wall_y = NO_SELECTION;
     app->selected_asset = entity->asset_index;
-    app->brush_vdiv = entity->vdiv;
-    app->brush_hdiv = entity->hdiv;
+    app->brush_vscale = entity->vscale;
+    app->brush_hscale = entity->hscale;
     app->brush_vmove = entity->vmove;
     app->brush_collision_threshold = entity->collision_threshold;
     app->brush_collision_mask = entity->collision_mask;
@@ -1876,8 +1876,8 @@ static void load_entity_fields_into_editor(App *app, int entity_index) {
     snprintf(app->brush_cleanup_fn, sizeof(app->brush_cleanup_fn), "%s", entity->cleanup_fn);
     if (app->brush_cleanup_fn[0] != '\0') remember_cleanup_fn(&app->cleanup_fns, app->brush_cleanup_fn, NULL, 0);
     snprintf(app->brush_animation, sizeof(app->brush_animation), "%s", entity->animation);
-    snprintf(app->brush_vdiv_text, sizeof(app->brush_vdiv_text), "%.3f", app->brush_vdiv);
-    snprintf(app->brush_hdiv_text, sizeof(app->brush_hdiv_text), "%.3f", app->brush_hdiv);
+    snprintf(app->brush_vscale_text, sizeof(app->brush_vscale_text), "%.3f", app->brush_vscale);
+    snprintf(app->brush_hscale_text, sizeof(app->brush_hscale_text), "%.3f", app->brush_hscale);
     snprintf(app->brush_vmove_text, sizeof(app->brush_vmove_text), "%.3f", app->brush_vmove);
     snprintf(app->brush_threshold_text, sizeof(app->brush_threshold_text), "%.3f", app->brush_collision_threshold);
     app->brush_kind = entity->kind;
@@ -2497,8 +2497,8 @@ static void sync_selected_entity_from_editor(App *app) {
 
         PlacedEntity *entity = &app->entities.data[entity_index];
         if (app->selected_asset >= 0 && app->selected_asset < (int)app->assets.length) entity->asset_index = app->selected_asset;
-        entity->vdiv = app->brush_vdiv;
-        entity->hdiv = app->brush_hdiv;
+        entity->vscale = app->brush_vscale;
+        entity->hscale = app->brush_hscale;
         entity->vmove = app->brush_vmove;
         entity->collision_threshold = app->brush_collision_threshold;
         entity->collision_mask = app->brush_collision_mask;
@@ -2517,21 +2517,21 @@ static void sync_selected_entity_from_editor(App *app) {
     make_unique_selected_entity_names(app);
 }
 
-static void apply_selected_entities_vdiv(App *app) {
+static void apply_selected_entities_vscale(App *app) {
     prune_invalid_selection(app);
     if (app->selection_kind != SELECTION_ENTITY) return;
     for (size_t i = 0; i < app->selected_entities.length; i++) {
         int entity_index = app->selected_entities.data[i];
-        if (selected_entity_is_valid(app, entity_index)) app->entities.data[entity_index].vdiv = app->brush_vdiv;
+        if (selected_entity_is_valid(app, entity_index)) app->entities.data[entity_index].vscale = app->brush_vscale;
     }
 }
 
-static void apply_selected_entities_hdiv(App *app) {
+static void apply_selected_entities_hscale(App *app) {
     prune_invalid_selection(app);
     if (app->selection_kind != SELECTION_ENTITY) return;
     for (size_t i = 0; i < app->selected_entities.length; i++) {
         int entity_index = app->selected_entities.data[i];
-        if (selected_entity_is_valid(app, entity_index)) app->entities.data[entity_index].hdiv = app->brush_hdiv;
+        if (selected_entity_is_valid(app, entity_index)) app->entities.data[entity_index].hscale = app->brush_hscale;
     }
 }
 
@@ -3472,8 +3472,8 @@ static void append_level_state(String *out, const App *app) {
             asset_symbol_or_null(app, entity->asset_index),
             entity->pos.x,
             entity->pos.y,
-            entity->vdiv,
-            entity->hdiv,
+            entity->vscale,
+            entity->hscale,
             entity->vmove,
             entity->disabled ? 1 : 0,
             entity->collision_threshold,
@@ -3848,8 +3848,8 @@ static bool parse_state_line(App *app, LoadedLevel *loaded, const char *payload,
             texture_symbol,
             &entity.pos.x,
             &entity.pos.y,
-            &entity.vdiv,
-            &entity.hdiv,
+            &entity.vscale,
+            &entity.hscale,
             &entity.vmove,
             &disabled,
             &entity.collision_threshold,
@@ -4029,8 +4029,8 @@ static void apply_loaded_level(App *app, LoadedLevel *loaded, Rectangle map_boun
     app->asset_scroll = 0.0f;
     app->cols_edit = false;
     app->rows_edit = false;
-    app->vdiv_edit = false;
-    app->hdiv_edit = false;
+    app->vscale_edit = false;
+    app->hscale_edit = false;
     app->vmove_edit = false;
     app->threshold_edit = false;
     app->entity_name_edit = false;
@@ -4494,11 +4494,11 @@ static bool write_level_header(App *app) {
         str_append(&out, "    YrEntity e = (YrEntity){\n");
         str_append(&out, "        .pos = pos,\n");
         str_appendf(&out, "        .texture_id = %s,\n", texture_symbol);
-        str_append(&out, "        .vdiv = ");
-        append_float_literal(&out, entity->vdiv);
+        str_append(&out, "        .vscale = ");
+        append_float_literal(&out, entity->vscale);
         str_append(&out, ",\n");
-        str_append(&out, "        .hdiv = ");
-        append_float_literal(&out, entity->hdiv);
+        str_append(&out, "        .hscale = ");
+        append_float_literal(&out, entity->hscale);
         str_append(&out, ",\n");
         str_append(&out, "        .vmove = ");
         append_float_literal(&out, entity->vmove);
@@ -4715,8 +4715,8 @@ static void place_entity(App *app, Vector2 pos) {
     PlacedEntity entity = {
         .pos = pos,
         .asset_index = app->selected_asset,
-        .vdiv = app->brush_vdiv,
-        .hdiv = app->brush_hdiv,
+        .vscale = app->brush_vscale,
+        .hscale = app->brush_hscale,
         .vmove = app->brush_vmove,
         .disabled = app->brush_disabled,
         .exported = app->brush_exported,
@@ -6833,8 +6833,8 @@ static void draw_sidebar(App *app, Rectangle sidebar_bounds, Rectangle map_bound
     } else if (app->brush == BRUSH_ENTITY) {
         bool multi_entity_edit = app->selection_kind == SELECTION_ENTITY && app->selected_entities.length > 1;
         bool name_was_editing = app->entity_name_edit;
-        float vdiv_before = app->brush_vdiv;
-        float hdiv_before = app->brush_hdiv;
+        float vscale_before = app->brush_vscale;
+        float hscale_before = app->brush_hscale;
         float vmove_before = app->brush_vmove;
         float threshold_before = app->brush_collision_threshold;
         uint32_t mask_before = app->brush_collision_mask;
@@ -6885,10 +6885,10 @@ static void draw_sidebar(App *app, Rectangle sidebar_bounds, Rectangle map_bound
             draw_entity_animation_picker(app, x, &y, w, 110.0f);
             if (multi_entity_edit && strcmp(animation_before, app->brush_animation) != 0) apply_selected_entities_animation(app);
         } else {
-            draw_float_field(app, entity_edit_subject(app), "vdiv", (Rectangle){x, y, half_w, row_h}, app->brush_vdiv_text, &app->brush_vdiv, &app->vdiv_edit);
-            draw_float_field(app, entity_edit_subject(app), "hdiv", (Rectangle){x + half_w + gap, y, half_w, row_h}, app->brush_hdiv_text, &app->brush_hdiv, &app->hdiv_edit);
-            if (multi_entity_edit && app->brush_vdiv != vdiv_before) apply_selected_entities_vdiv(app);
-            if (multi_entity_edit && app->brush_hdiv != hdiv_before) apply_selected_entities_hdiv(app);
+            draw_float_field(app, entity_edit_subject(app), "vscale", (Rectangle){x, y, half_w, row_h}, app->brush_vscale_text, &app->brush_vscale, &app->vscale_edit);
+            draw_float_field(app, entity_edit_subject(app), "hscale", (Rectangle){x + half_w + gap, y, half_w, row_h}, app->brush_hscale_text, &app->brush_hscale, &app->hscale_edit);
+            if (multi_entity_edit && app->brush_vscale != vscale_before) apply_selected_entities_vscale(app);
+            if (multi_entity_edit && app->brush_hscale != hscale_before) apply_selected_entities_hscale(app);
             y += 32.0f;
 
             draw_float_field(app, entity_edit_subject(app), "vmove", (Rectangle){x, y, half_w, row_h}, app->brush_vmove_text, &app->brush_vmove, &app->vmove_edit);
@@ -6998,13 +6998,13 @@ static void init_app(App *app, const char *asset_dir, const char *output_path, c
     app->wall_drag_end_y = NO_SELECTION;
     app->pending_cols = DEFAULT_MAP_COLS;
     app->pending_rows = DEFAULT_MAP_ROWS;
-    app->brush_vdiv = 0.0f;
-    app->brush_hdiv = 0.0f;
+    app->brush_vscale = 0.0f;
+    app->brush_hscale = 0.0f;
     app->brush_vmove = 0.0f;
     app->brush_collision_threshold = DEFAULT_ENTITY_COLLISION_THRESHOLD;
     app->brush_collision_mask = 0;
-    snprintf(app->brush_vdiv_text, sizeof(app->brush_vdiv_text), "0.0");
-    snprintf(app->brush_hdiv_text, sizeof(app->brush_hdiv_text), "0.0");
+    snprintf(app->brush_vscale_text, sizeof(app->brush_vscale_text), "0.0");
+    snprintf(app->brush_hscale_text, sizeof(app->brush_hscale_text), "0.0");
     snprintf(app->brush_vmove_text, sizeof(app->brush_vmove_text), "0.0");
     snprintf(app->brush_threshold_text, sizeof(app->brush_threshold_text), "%.3f", app->brush_collision_threshold);
     snprintf(app->brush_entity_name, sizeof(app->brush_entity_name), "entity");

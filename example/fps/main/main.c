@@ -406,7 +406,7 @@ void update_explosion(YrContext *ctx, YrEntity *self, size_t index) {
         remove_entity(ctx, index);
         return;
     }
-    self->hdiv -= get_frame_time();
+    self->hscale += get_frame_time();
     bool in_player_range = self->dist > 0 && self->dist < PLAYER_COLLISION_THRESHOLD + explosion_radius;
 
     // damage

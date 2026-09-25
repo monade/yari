@@ -28,8 +28,8 @@ struct YrEntity {
     int texture_id;
     int kind;
     float dist;
-    float vdiv;
-    float hdiv;
+    float vscale;
+    float hscale;
     float vmove;
     bool disabled;
     void *entity_data;

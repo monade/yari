@@ -986,9 +986,9 @@
 // ceil 13 44 tx_spr_017
 // entity key tx_spr_092 2.2617507 22.435463 0 0 0 0 0.400000006 0x00000002 1 pickup_key 0 - - -
 // entity end tx_spr_017 46.4973793 1.78567624 0 0 0 0 0.75 0x00000002 1 trigger_end 0 - - -
-// entity gun tx_wep_000_b 4.01398993 41.3889999 0.5 0.5 0.25 0 0.400000006 0x00000002 1 pickup_gun 0 - - -
+// entity gun tx_wep_000_b 4.01398993 41.3889999 -0.5 -0.5 0.25 0 0.400000006 0x00000002 1 pickup_gun 0 - - -
 // entity mummy tx_spr_009 2.38010597 45.4295273 0 0 0 0 0.400000006 0x00000004 0 update_mummy 0 cleanup_data init_mummy mummy
-// entity shotgun tx_wep_012_b 27.3352585 3.56312609 0.5 0.5 0.25 0 0.400000006 0x00000002 1 pickup_bfg 0 - - -
+// entity shotgun tx_wep_012_b 27.3352585 3.56312609 -0.5 -0.5 0.25 0 0.400000006 0x00000002 1 pickup_bfg 0 - - -
 // entity entity_1 tx_exp_001 17.4520226 12.624958 0 0 0 0 0.400000006 0x00000008 1 - 1 - - -
 // entity entity_2 tx_exp_001 5.07961178 36.332119 0 0 0 0 0.400000006 0x00000008 1 - 1 - - -
 // entity entity_3 tx_spr_082 11.9429874 22.7616005 0 0 0 0 0.400000006 0x00000008 1 - 0 - - -
@@ -1014,15 +1014,15 @@
 // entity entity_23 tx_spr_080 1.8964324 36.9851646 0 0 0 0 0.400000006 0x0000000C 1 - 0 - - dummy5
 // entity entity_24 tx_spr_080 4.0874114 7.34475756 0 0 0 0 0.400000006 0x0000000C 1 - 0 - - dummy5
 // entity boss tx_spr_056 46.1132355 5.44981956 0 0 0 0 0.75 0x00000004 0 update_boss 0 cleanup_data init_boss boss
-// entity boss_projectile tx_spr_017 47.2361679 5.49820614 0.800000012 0.800000012 0 0 0.200000003 0x00000010 0 update_boss_projectile 0 cleanup_data init_boss_projectile -
+// entity boss_projectile tx_spr_017 47.2361679 5.49820614 -0.800000012 -0.800000012 0 0 0.200000003 0x00000010 0 update_boss_projectile 0 cleanup_data init_boss_projectile -
 // entity entity_25 tx_exp_001 7.79392385 6.05574894 0 0 0 0 0.400000006 0x00000008 1 - 1 - - -
 // entity mummy_2 tx_spr_049 46.1862144 26.0396004 0 0 0 0 0.400000006 0x00000004 0 update_mummy 0 cleanup_data init_mummy2 mummy2
 // entity entity_26 tx_spr_000 17.5065002 27.4791145 0 0 0 0 0.400000006 0x00000002 1 pickup_medikit 0 - - -
-// entity entity_27 tx_spr_000 33.7130814 12.7088871 0 0 0 0 0.400000006 0x00000002 1 pickup_medikit 0 - - -
+// entity entity_27 tx_spr_000 33.7130814 12.6424732 0 0 0 0 0.400000006 0x00000002 1 pickup_medikit 0 - - -
 // entity entity_28 tx_spr_000 44.8793259 48.4047241 0 0 0 0 0.400000006 0x00000002 1 pickup_medikit 0 - - -
 // entity explosion tx_exp_000 3.12912941 41.43536 0 0 0 0 0.400000006 0x00000000 0 update_explosion 0 cleanup_data init_explosion -
 // entity entity_29 tx_spr_066 1.55209446 24.4778023 0 0 0 0 0.400000006 0x0000000C 1 - 0 - - dummy1
-// entity shotgun_2 tx_wep_001_b 1.61841583 31.3627949 0.5 0.5 0.25 0 0.400000006 0x00000002 1 pickup_shotgun 0 - - -
+// entity shotgun_2 tx_wep_001_b 1.61841583 31.3627949 -0.5 -0.5 0.25 0 0.400000006 0x00000002 1 pickup_shotgun 0 - - -
 // trigger second_wave rect 24.7999992 0 5 10 4 2
 // trigger third_wave circle 24.7999992 0 16.5653629 9.29599571 2.29107738
 // trigger fourth_wave poly 24.7999992 0 4 42 34 40 34 38 33 38 32
@@ -1106,8 +1106,8 @@ static inline YrEntity create_key_level1_pos(Vector2 pos, void *data, YrEntityIn
     YrEntity e = (YrEntity){
         .pos = pos,
         .texture_id = tx_spr_092,
-        .vdiv = 0.0f,
-        .hdiv = 0.0f,
+        .vscale = 0.0f,
+        .hscale = 0.0f,
         .vmove = 0.0f,
         .disabled = false,
         .kind = 0,
@@ -1129,8 +1129,8 @@ static inline YrEntity create_end_level1_pos(Vector2 pos, void *data, YrEntityIn
     YrEntity e = (YrEntity){
         .pos = pos,
         .texture_id = tx_spr_017,
-        .vdiv = 0.0f,
-        .hdiv = 0.0f,
+        .vscale = 0.0f,
+        .hscale = 0.0f,
         .vmove = 0.0f,
         .disabled = false,
         .kind = 0,
@@ -1152,8 +1152,8 @@ static inline YrEntity create_gun_level1_pos(Vector2 pos, void *data, YrEntityIn
     YrEntity e = (YrEntity){
         .pos = pos,
         .texture_id = tx_wep_000_b,
-        .vdiv = 0.5f,
-        .hdiv = 0.5f,
+        .vscale = -0.5f,
+        .hscale = -0.5f,
         .vmove = 0.25f,
         .disabled = false,
         .kind = 0,
@@ -1175,8 +1175,8 @@ static inline YrEntity create_mummy_level1_pos(Vector2 pos, void *data) {
     YrEntity e = (YrEntity){
         .pos = pos,
         .texture_id = tx_spr_009,
-        .vdiv = 0.0f,
-        .hdiv = 0.0f,
+        .vscale = 0.0f,
+        .hscale = 0.0f,
         .vmove = 0.0f,
         .disabled = false,
         .kind = 0,
@@ -1199,8 +1199,8 @@ static inline YrEntity create_shotgun_level1_pos(Vector2 pos, void *data, YrEnti
     YrEntity e = (YrEntity){
         .pos = pos,
         .texture_id = tx_wep_012_b,
-        .vdiv = 0.5f,
-        .hdiv = 0.5f,
+        .vscale = -0.5f,
+        .hscale = -0.5f,
         .vmove = 0.25f,
         .disabled = false,
         .kind = 0,
@@ -1222,8 +1222,8 @@ static inline YrEntity create_entity_1_level1_pos(Vector2 pos, void *data, YrEnt
     YrEntity e = (YrEntity){
         .pos = pos,
         .texture_id = tx_exp_001,
-        .vdiv = 0.0f,
-        .hdiv = 0.0f,
+        .vscale = 0.0f,
+        .hscale = 0.0f,
         .vmove = 0.0f,
         .disabled = false,
         .kind = 1,
@@ -1245,8 +1245,8 @@ static inline YrEntity create_entity_2_level1_pos(Vector2 pos, void *data, YrEnt
     YrEntity e = (YrEntity){
         .pos = pos,
         .texture_id = tx_exp_001,
-        .vdiv = 0.0f,
-        .hdiv = 0.0f,
+        .vscale = 0.0f,
+        .hscale = 0.0f,
         .vmove = 0.0f,
         .disabled = false,
         .kind = 1,
@@ -1268,8 +1268,8 @@ static inline YrEntity create_entity_3_level1_pos(Vector2 pos, void *data, YrEnt
     YrEntity e = (YrEntity){
         .pos = pos,
         .texture_id = tx_spr_082,
-        .vdiv = 0.0f,
-        .hdiv = 0.0f,
+        .vscale = 0.0f,
+        .hscale = 0.0f,
         .vmove = 0.0f,
         .disabled = false,
         .kind = 0,
@@ -1291,8 +1291,8 @@ static inline YrEntity create_entity_4_level1_pos(Vector2 pos, void *data, YrEnt
     YrEntity e = (YrEntity){
         .pos = pos,
         .texture_id = tx_spr_082,
-        .vdiv = 0.0f,
-        .hdiv = 0.0f,
+        .vscale = 0.0f,
+        .hscale = 0.0f,
         .vmove = 0.0f,
         .disabled = false,
         .kind = 0,
@@ -1314,8 +1314,8 @@ static inline YrEntity create_entity_5_level1_pos(Vector2 pos, void *data, YrEnt
     YrEntity e = (YrEntity){
         .pos = pos,
         .texture_id = tx_spr_082,
-        .vdiv = 0.0f,
-        .hdiv = 0.0f,
+        .vscale = 0.0f,
+        .hscale = 0.0f,
         .vmove = 0.0f,
         .disabled = false,
         .kind = 0,
@@ -1337,8 +1337,8 @@ static inline YrEntity create_entity_6_level1_pos(Vector2 pos, void *data, YrEnt
     YrEntity e = (YrEntity){
         .pos = pos,
         .texture_id = tx_exp_001,
-        .vdiv = 0.0f,
-        .hdiv = 0.0f,
+        .vscale = 0.0f,
+        .hscale = 0.0f,
         .vmove = 0.0f,
         .disabled = false,
         .kind = 1,
@@ -1360,8 +1360,8 @@ static inline YrEntity create_entity_7_level1_pos(Vector2 pos, void *data, YrEnt
     YrEntity e = (YrEntity){
         .pos = pos,
         .texture_id = tx_spr_080,
-        .vdiv = 0.0f,
-        .hdiv = 0.0f,
+        .vscale = 0.0f,
+        .hscale = 0.0f,
         .vmove = 0.0f,
         .disabled = false,
         .kind = 0,
@@ -1384,8 +1384,8 @@ static inline YrEntity create_entity_8_level1_pos(Vector2 pos, void *data, YrEnt
     YrEntity e = (YrEntity){
         .pos = pos,
         .texture_id = tx_spr_080,
-        .vdiv = 0.0f,
-        .hdiv = 0.0f,
+        .vscale = 0.0f,
+        .hscale = 0.0f,
         .vmove = 0.0f,
         .disabled = false,
         .kind = 0,
@@ -1408,8 +1408,8 @@ static inline YrEntity create_entity_9_level1_pos(Vector2 pos, void *data, YrEnt
     YrEntity e = (YrEntity){
         .pos = pos,
         .texture_id = tx_spr_080,
-        .vdiv = 0.0f,
-        .hdiv = 0.0f,
+        .vscale = 0.0f,
+        .hscale = 0.0f,
         .vmove = 0.0f,
         .disabled = false,
         .kind = 0,
@@ -1432,8 +1432,8 @@ static inline YrEntity create_entity_10_level1_pos(Vector2 pos, void *data, YrEn
     YrEntity e = (YrEntity){
         .pos = pos,
         .texture_id = tx_spr_079,
-        .vdiv = 0.0f,
-        .hdiv = 0.0f,
+        .vscale = 0.0f,
+        .hscale = 0.0f,
         .vmove = 0.0f,
         .disabled = false,
         .kind = 0,
@@ -1455,8 +1455,8 @@ static inline YrEntity create_entity_11_level1_pos(Vector2 pos, void *data, YrEn
     YrEntity e = (YrEntity){
         .pos = pos,
         .texture_id = tx_spr_079,
-        .vdiv = 0.0f,
-        .hdiv = 0.0f,
+        .vscale = 0.0f,
+        .hscale = 0.0f,
         .vmove = 0.0f,
         .disabled = false,
         .kind = 0,
@@ -1478,8 +1478,8 @@ static inline YrEntity create_entity_12_level1_pos(Vector2 pos, void *data, YrEn
     YrEntity e = (YrEntity){
         .pos = pos,
         .texture_id = tx_spr_079,
-        .vdiv = 0.0f,
-        .hdiv = 0.0f,
+        .vscale = 0.0f,
+        .hscale = 0.0f,
         .vmove = 0.0f,
         .disabled = false,
         .kind = 0,
@@ -1501,8 +1501,8 @@ static inline YrEntity create_entity_13_level1_pos(Vector2 pos, void *data, YrEn
     YrEntity e = (YrEntity){
         .pos = pos,
         .texture_id = tx_spr_079,
-        .vdiv = 0.0f,
-        .hdiv = 0.0f,
+        .vscale = 0.0f,
+        .hscale = 0.0f,
         .vmove = 0.0f,
         .disabled = false,
         .kind = 0,
@@ -1524,8 +1524,8 @@ static inline YrEntity create_entity_14_level1_pos(Vector2 pos, void *data, YrEn
     YrEntity e = (YrEntity){
         .pos = pos,
         .texture_id = tx_spr_077,
-        .vdiv = 0.0f,
-        .hdiv = 0.0f,
+        .vscale = 0.0f,
+        .hscale = 0.0f,
         .vmove = 0.0f,
         .disabled = false,
         .kind = 0,
@@ -1547,8 +1547,8 @@ static inline YrEntity create_entity_30_level1_pos(Vector2 pos, void *data, YrEn
     YrEntity e = (YrEntity){
         .pos = pos,
         .texture_id = tx_spr_080,
-        .vdiv = 0.0f,
-        .hdiv = 0.0f,
+        .vscale = 0.0f,
+        .hscale = 0.0f,
         .vmove = 0.0f,
         .disabled = false,
         .kind = 0,
@@ -1571,8 +1571,8 @@ static inline YrEntity create_entity_16_level1_pos(Vector2 pos, void *data, YrEn
     YrEntity e = (YrEntity){
         .pos = pos,
         .texture_id = tx_spr_072,
-        .vdiv = 0.0f,
-        .hdiv = 0.0f,
+        .vscale = 0.0f,
+        .hscale = 0.0f,
         .vmove = 0.0f,
         .disabled = false,
         .kind = 0,
@@ -1595,8 +1595,8 @@ static inline YrEntity create_entity_17_level1_pos(Vector2 pos, void *data, YrEn
     YrEntity e = (YrEntity){
         .pos = pos,
         .texture_id = tx_spr_072,
-        .vdiv = 0.0f,
-        .hdiv = 0.0f,
+        .vscale = 0.0f,
+        .hscale = 0.0f,
         .vmove = 0.0f,
         .disabled = false,
         .kind = 0,
@@ -1619,8 +1619,8 @@ static inline YrEntity create_entity_18_level1_pos(Vector2 pos, void *data, YrEn
     YrEntity e = (YrEntity){
         .pos = pos,
         .texture_id = tx_spr_066,
-        .vdiv = 0.0f,
-        .hdiv = 0.0f,
+        .vscale = 0.0f,
+        .hscale = 0.0f,
         .vmove = 0.0f,
         .disabled = false,
         .kind = 0,
@@ -1643,8 +1643,8 @@ static inline YrEntity create_entity_19_level1_pos(Vector2 pos, void *data, YrEn
     YrEntity e = (YrEntity){
         .pos = pos,
         .texture_id = tx_spr_066,
-        .vdiv = 0.0f,
-        .hdiv = 0.0f,
+        .vscale = 0.0f,
+        .hscale = 0.0f,
         .vmove = 0.0f,
         .disabled = false,
         .kind = 0,
@@ -1667,8 +1667,8 @@ static inline YrEntity create_entity_20_level1_pos(Vector2 pos, void *data, YrEn
     YrEntity e = (YrEntity){
         .pos = pos,
         .texture_id = tx_spr_080,
-        .vdiv = 0.0f,
-        .hdiv = 0.0f,
+        .vscale = 0.0f,
+        .hscale = 0.0f,
         .vmove = 0.0f,
         .disabled = false,
         .kind = 0,
@@ -1691,8 +1691,8 @@ static inline YrEntity create_entity_21_level1_pos(Vector2 pos, void *data, YrEn
     YrEntity e = (YrEntity){
         .pos = pos,
         .texture_id = tx_spr_080,
-        .vdiv = 0.0f,
-        .hdiv = 0.0f,
+        .vscale = 0.0f,
+        .hscale = 0.0f,
         .vmove = 0.0f,
         .disabled = false,
         .kind = 0,
@@ -1715,8 +1715,8 @@ static inline YrEntity create_entity_22_level1_pos(Vector2 pos, void *data, YrEn
     YrEntity e = (YrEntity){
         .pos = pos,
         .texture_id = tx_spr_080,
-        .vdiv = 0.0f,
-        .hdiv = 0.0f,
+        .vscale = 0.0f,
+        .hscale = 0.0f,
         .vmove = 0.0f,
         .disabled = false,
         .kind = 0,
@@ -1739,8 +1739,8 @@ static inline YrEntity create_entity_23_level1_pos(Vector2 pos, void *data, YrEn
     YrEntity e = (YrEntity){
         .pos = pos,
         .texture_id = tx_spr_080,
-        .vdiv = 0.0f,
-        .hdiv = 0.0f,
+        .vscale = 0.0f,
+        .hscale = 0.0f,
         .vmove = 0.0f,
         .disabled = false,
         .kind = 0,
@@ -1763,8 +1763,8 @@ static inline YrEntity create_entity_24_level1_pos(Vector2 pos, void *data, YrEn
     YrEntity e = (YrEntity){
         .pos = pos,
         .texture_id = tx_spr_080,
-        .vdiv = 0.0f,
-        .hdiv = 0.0f,
+        .vscale = 0.0f,
+        .hscale = 0.0f,
         .vmove = 0.0f,
         .disabled = false,
         .kind = 0,
@@ -1787,8 +1787,8 @@ static inline YrEntity create_boss_level1_pos(Vector2 pos, void *data) {
     YrEntity e = (YrEntity){
         .pos = pos,
         .texture_id = tx_spr_056,
-        .vdiv = 0.0f,
-        .hdiv = 0.0f,
+        .vscale = 0.0f,
+        .hscale = 0.0f,
         .vmove = 0.0f,
         .disabled = false,
         .kind = 0,
@@ -1811,8 +1811,8 @@ static inline YrEntity create_boss_projectile_level1_pos(Vector2 pos, void *data
     YrEntity e = (YrEntity){
         .pos = pos,
         .texture_id = tx_spr_017,
-        .vdiv = 0.8f,
-        .hdiv = 0.8f,
+        .vscale = -0.8f,
+        .hscale = -0.8f,
         .vmove = 0.0f,
         .disabled = false,
         .kind = 0,
@@ -1834,8 +1834,8 @@ static inline YrEntity create_entity_25_level1_pos(Vector2 pos, void *data, YrEn
     YrEntity e = (YrEntity){
         .pos = pos,
         .texture_id = tx_exp_001,
-        .vdiv = 0.0f,
-        .hdiv = 0.0f,
+        .vscale = 0.0f,
+        .hscale = 0.0f,
         .vmove = 0.0f,
         .disabled = false,
         .kind = 1,
@@ -1857,8 +1857,8 @@ static inline YrEntity create_mummy_2_level1_pos(Vector2 pos, void *data) {
     YrEntity e = (YrEntity){
         .pos = pos,
         .texture_id = tx_spr_049,
-        .vdiv = 0.0f,
-        .hdiv = 0.0f,
+        .vscale = 0.0f,
+        .hscale = 0.0f,
         .vmove = 0.0f,
         .disabled = false,
         .kind = 0,
@@ -1881,8 +1881,8 @@ static inline YrEntity create_entity_26_level1_pos(Vector2 pos, void *data, YrEn
     YrEntity e = (YrEntity){
         .pos = pos,
         .texture_id = tx_spr_000,
-        .vdiv = 0.0f,
-        .hdiv = 0.0f,
+        .vscale = 0.0f,
+        .hscale = 0.0f,
         .vmove = 0.0f,
         .disabled = false,
         .kind = 0,
@@ -1904,8 +1904,8 @@ static inline YrEntity create_entity_27_level1_pos(Vector2 pos, void *data, YrEn
     YrEntity e = (YrEntity){
         .pos = pos,
         .texture_id = tx_spr_000,
-        .vdiv = 0.0f,
-        .hdiv = 0.0f,
+        .vscale = 0.0f,
+        .hscale = 0.0f,
         .vmove = 0.0f,
         .disabled = false,
         .kind = 0,
@@ -1920,15 +1920,15 @@ static inline YrEntity create_entity_27_level1_pos(Vector2 pos, void *data, YrEn
 }
 
 static inline YrEntity create_entity_27_level1(void *data, YrEntityInitFunc init, YrEntityCleanupFunc cleanup) {
-    return create_entity_27_level1_pos((Vector2){33.713081f, 12.708887f}, data, init, cleanup);
+    return create_entity_27_level1_pos((Vector2){33.713081f, 12.642473f}, data, init, cleanup);
 }
 
 static inline YrEntity create_entity_28_level1_pos(Vector2 pos, void *data, YrEntityInitFunc init, YrEntityCleanupFunc cleanup) {
     YrEntity e = (YrEntity){
         .pos = pos,
         .texture_id = tx_spr_000,
-        .vdiv = 0.0f,
-        .hdiv = 0.0f,
+        .vscale = 0.0f,
+        .hscale = 0.0f,
         .vmove = 0.0f,
         .disabled = false,
         .kind = 0,
@@ -1950,8 +1950,8 @@ static inline YrEntity create_explosion_level1_pos(Vector2 pos, void *data) {
     YrEntity e = (YrEntity){
         .pos = pos,
         .texture_id = tx_exp_000,
-        .vdiv = 0.0f,
-        .hdiv = 0.0f,
+        .vscale = 0.0f,
+        .hscale = 0.0f,
         .vmove = 0.0f,
         .disabled = false,
         .kind = 0,
@@ -1973,8 +1973,8 @@ static inline YrEntity create_entity_29_level1_pos(Vector2 pos, void *data, YrEn
     YrEntity e = (YrEntity){
         .pos = pos,
         .texture_id = tx_spr_066,
-        .vdiv = 0.0f,
-        .hdiv = 0.0f,
+        .vscale = 0.0f,
+        .hscale = 0.0f,
         .vmove = 0.0f,
         .disabled = false,
         .kind = 0,
@@ -1997,8 +1997,8 @@ static inline YrEntity create_shotgun_2_level1_pos(Vector2 pos, void *data, YrEn
     YrEntity e = (YrEntity){
         .pos = pos,
         .texture_id = tx_wep_001_b,
-        .vdiv = 0.5f,
-        .hdiv = 0.5f,
+        .vscale = -0.5f,
+        .hscale = -0.5f,
         .vmove = 0.25f,
         .disabled = false,
         .kind = 0,

@@ -617,7 +617,7 @@ void yr__draw_sprites_range(YrContext *ctx, int x_start, int x_end) {
             int v_shift = (int)(p->horizon * ctx->screen_height * 0.5f);
             int vmove = (int)((e->vmove * projection_scale) / transform.y);
     
-            int spriteHeight = abs((int)((projection_scale * (1.0 - e->vdiv)) / transform.y));
+            int spriteHeight = abs((int)((projection_scale * (1.0 + e->vscale)) / transform.y));
             if (spriteHeight <= 0) continue;
             int spriteTop = (ctx->screen_height - spriteHeight) / 2 + vmove + v_shift;
             int spriteBottom = spriteTop + spriteHeight;
@@ -627,7 +627,7 @@ void yr__draw_sprites_range(YrContext *ctx, int x_start, int x_end) {
             if (drawEndY > ctx->screen_height) drawEndY = ctx->screen_height;
             if (drawEndY <= drawStartY) continue;
     
-            int spriteWidth = abs((int)((projection_scale * (1.0 - e->hdiv)) / transform.y));
+            int spriteWidth = abs((int)((projection_scale * (1.0 + e->hscale)) / transform.y));
             if (spriteWidth <= 0) continue;
             int spriteLeft = spriteScreenX - spriteWidth / 2;
             int spriteRight = spriteLeft + spriteWidth;
