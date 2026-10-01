@@ -25,7 +25,7 @@ typedef void (*YrEntityCleanupFunc)(YrEntity *self);
 
 struct YrEntity {
     Vector2 pos;
-    int texture_id;
+    yr_texture_id_t texture_id;
     int kind;
     float dist;
     float vscale;
@@ -65,7 +65,7 @@ typedef struct {
         uint8_t transparent : 1;
     };
     union {
-        uint16_t texture_id;
+        yr_texture_id_t texture_id;
         yr_pixel_t color;
     };
     int8_t slide_x;
@@ -74,16 +74,16 @@ typedef struct {
 
 #define YrEmptyWall() (YrWall) {0}
 #define YrColoredWall(col, ...) (YrWall) {.textured = false, .color = (col), __VA_ARGS__}
-#define YrTexturedWall(tex_id, ...) (YrWall) {.textured = true, .texture_id = (uint16_t)(tex_id), __VA_ARGS__}
+#define YrTexturedWall(tex_id, ...) (YrWall) {.textured = true, .texture_id = (yr_texture_id_t)(tex_id), __VA_ARGS__}
 
 typedef struct {
     YrWall  *walls;
-    uint8_t *floor;
-    uint8_t *ceil;
+    yr_texture_id_t *floor;
+    yr_texture_id_t *ceil;
     size_t cols;
     size_t rows;
-    size_t floor_texture;
-    size_t ceil_texture;
+    yr_texture_id_t floor_texture;
+    yr_texture_id_t ceil_texture;
 } YrMap;
 
 enum yr_render_obj_type {
@@ -98,7 +98,7 @@ typedef struct {
         struct {
             int texture_x;
             int slice_x;
-            int texture_id;
+            yr_texture_id_t texture_id;
         };
         YrEntity * entity;
     };

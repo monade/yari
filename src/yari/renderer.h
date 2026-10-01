@@ -34,6 +34,11 @@
 #define YR_TEXTURE_SIZE 64
 #endif
 
+#ifndef YR_TEXTURE_ID_TYPE
+#define YR_TEXTURE_ID_TYPE uint16_t
+#endif
+typedef YR_TEXTURE_ID_TYPE yr_texture_id_t;
+
 typedef enum {
     YR_FONT_SM,
     YR_FONT_MD,

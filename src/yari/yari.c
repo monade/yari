@@ -471,7 +471,7 @@ void yr__draw_background_range(YrContext *ctx, int x_start, int x_end) {
                     size_t cell_x = (size_t)world_x;
                     size_t cell_y = (size_t)world_y;
                     if (cell_x < ctx->map.cols && cell_y < ctx->map.rows) {
-                        uint8_t tex_id = ctx->map.ceil[cell_y * ctx->map.cols + cell_x];
+                        yr_texture_id_t tex_id = ctx->map.ceil[cell_y * ctx->map.cols + cell_x];
                         if (tex_id) tex = ctx->assets_map[tex_id];
                     }
                 }
@@ -507,7 +507,7 @@ void yr__draw_background_range(YrContext *ctx, int x_start, int x_end) {
                     size_t cell_x = (size_t)world_x;
                     size_t cell_y = (size_t)world_y;
                     if (cell_x < ctx->map.cols && cell_y < ctx->map.rows) {
-                        uint8_t tex_id = ctx->map.floor[cell_y * ctx->map.cols + cell_x];
+                        yr_texture_id_t tex_id = ctx->map.floor[cell_y * ctx->map.cols + cell_x];
                         if (tex_id) tex = ctx->assets_map[tex_id];
                     }
                 }

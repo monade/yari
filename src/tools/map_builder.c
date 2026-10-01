@@ -4235,7 +4235,7 @@ static void append_map_array_data(String *out, const App *app, const WallMap *ma
 }
 
 static void append_map_array_var(String *out, const App *app, const char *var_name, const WallMap *map, const char *macro_suffix) {
-    str_appendf(out, "static const uint8_t %s[YR_MAP_ROWS%s * YR_MAP_COLS%s] = {\n", var_name, macro_suffix, macro_suffix);
+    str_appendf(out, "static const yr_texture_id_t %s[YR_MAP_ROWS%s * YR_MAP_COLS%s] = {\n", var_name, macro_suffix, macro_suffix);
     append_map_array_data(out, app, map);
     str_append(out, "};\n\n");
 }
