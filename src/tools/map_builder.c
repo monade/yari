@@ -5155,11 +5155,25 @@ static void handle_map_input(App *app, Rectangle map_bounds) {
     }
 }
 
+// raylib 6 draws BeginMode2D in physical pixels while GetScreenToWorld2D and
+// the rest of the layout stay logical, so the drawing camera is scaled by the DPI
+// (raylib 5 already applies the DPI scale in BeginDrawing).
+static Camera2D drawing_camera(const App *app) {
+    Camera2D camera = app->camera;
+#if !defined(_WIN32) && RAYLIB_VERSION_MAJOR >= 6
+    float dpi = GetWindowScaleDPI().x;
+    camera.offset.x *= dpi;
+    camera.offset.y *= dpi;
+    camera.zoom *= dpi;
+#endif
+    return camera;
+}
+
 static void draw_map(App *app, Rectangle map_bounds) {
     DrawRectangleRec(map_bounds, (Color){25, 27, 31, 255});
 
     BeginScissorMode((int)map_bounds.x, (int)map_bounds.y, (int)map_bounds.width, (int)map_bounds.height);
-    BeginMode2D(app->camera);
+    BeginMode2D(drawing_camera(app));
 
     DrawRectangleRec((Rectangle){0.0f, 0.0f, (float)app->map.cols, (float)app->map.rows}, (Color){37, 39, 44, 255});
 
