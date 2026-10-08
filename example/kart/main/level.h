@@ -1866,175 +1866,214 @@ static inline YrCamera init_camera(void) {
     return init_camera_pos((Vector2){4.541459f, 94.703178f});
 }
 
+static const YrEntity entity_1_template = {
+    .pos = {48.890678f, 66.411545f},
+    .texture_id = tx_wal_026,
+    .vscale = 0.0f,
+    .hscale = 0.0f,
+    .vmove = 0.0f,
+    .disabled = false,
+    .kind = 0,
+    .collision_mask = 0x00000004u,
+    .collision_threshold = 0.4f,
+};
+
 static inline YrEntity create_entity_1_pos(Vector2 pos, void *data, YrEntityInitFunc init, YrEntityUpdateFunc update, YrEntityCleanupFunc cleanup) {
-    YrEntity e = (YrEntity){
-        .pos = pos,
-        .texture_id = tx_wal_026,
-        .vscale = 0.0f,
-        .hscale = 0.0f,
-        .vmove = 0.0f,
-        .disabled = false,
-        .kind = 0,
-        .entity_data = data,
-        .collision_mask = 0x00000004u,
-        .collision_threshold = 0.4f,
-        .init = init,
-        .update = update,
-        .cleanup = cleanup,
-    };
+    YrEntity e = entity_1_template;
+    e.pos = pos;
+    e.entity_data = data;
+    e.init = init;
+    e.update = update;
+    e.cleanup = cleanup;
     return e;
 }
 
 static inline YrEntity create_entity_1(void *data, YrEntityInitFunc init, YrEntityUpdateFunc update, YrEntityCleanupFunc cleanup) {
-    return create_entity_1_pos((Vector2){48.890678f, 66.411545f}, data, init, update, cleanup);
+    return create_entity_1_pos(entity_1_template.pos, data, init, update, cleanup);
 }
 
+static const YrEntity entity_2_template = {
+    .pos = {48.960949f, 68.516251f},
+    .texture_id = tx_wal_026,
+    .vscale = 0.0f,
+    .hscale = 0.0f,
+    .vmove = 0.0f,
+    .disabled = false,
+    .kind = 0,
+    .collision_mask = 0x00000004u,
+    .collision_threshold = 0.4f,
+};
+
 static inline YrEntity create_entity_2_pos(Vector2 pos, void *data, YrEntityInitFunc init, YrEntityUpdateFunc update, YrEntityCleanupFunc cleanup) {
-    YrEntity e = (YrEntity){
-        .pos = pos,
-        .texture_id = tx_wal_026,
-        .vscale = 0.0f,
-        .hscale = 0.0f,
-        .vmove = 0.0f,
-        .disabled = false,
-        .kind = 0,
-        .entity_data = data,
-        .collision_mask = 0x00000004u,
-        .collision_threshold = 0.4f,
-        .init = init,
-        .update = update,
-        .cleanup = cleanup,
-    };
+    YrEntity e = entity_2_template;
+    e.pos = pos;
+    e.entity_data = data;
+    e.init = init;
+    e.update = update;
+    e.cleanup = cleanup;
     return e;
 }
 
 static inline YrEntity create_entity_2(void *data, YrEntityInitFunc init, YrEntityUpdateFunc update, YrEntityCleanupFunc cleanup) {
-    return create_entity_2_pos((Vector2){48.960949f, 68.516251f}, data, init, update, cleanup);
+    return create_entity_2_pos(entity_2_template.pos, data, init, update, cleanup);
 }
 
+static const YrEntity entity_3_template = {
+    .pos = {48.972923f, 67.3629f},
+    .texture_id = tx_wal_023,
+    .vscale = 0.0f,
+    .hscale = 0.0f,
+    .vmove = 0.0f,
+    .disabled = false,
+    .kind = 0,
+    .collision_mask = 0x00000004u,
+    .collision_threshold = 0.4f,
+};
+
 static inline YrEntity create_entity_3_pos(Vector2 pos, void *data, YrEntityInitFunc init, YrEntityUpdateFunc update, YrEntityCleanupFunc cleanup) {
-    YrEntity e = (YrEntity){
-        .pos = pos,
-        .texture_id = tx_wal_023,
-        .vscale = 0.0f,
-        .hscale = 0.0f,
-        .vmove = 0.0f,
-        .disabled = false,
-        .kind = 0,
-        .entity_data = data,
-        .collision_mask = 0x00000004u,
-        .collision_threshold = 0.4f,
-        .init = init,
-        .update = update,
-        .cleanup = cleanup,
-    };
+    YrEntity e = entity_3_template;
+    e.pos = pos;
+    e.entity_data = data;
+    e.init = init;
+    e.update = update;
+    e.cleanup = cleanup;
     return e;
 }
 
 static inline YrEntity create_entity_3(void *data, YrEntityInitFunc init, YrEntityUpdateFunc update, YrEntityCleanupFunc cleanup) {
-    return create_entity_3_pos((Vector2){48.972923f, 67.3629f}, data, init, update, cleanup);
+    return create_entity_3_pos(entity_3_template.pos, data, init, update, cleanup);
 }
 
+static const YrEntity entity_4_template = {
+    .pos = {17.621407f, 72.393517f},
+    .texture_id = tx_wal_023,
+    .vscale = 0.0f,
+    .hscale = 0.0f,
+    .vmove = 0.0f,
+    .disabled = false,
+    .kind = 0,
+    .collision_mask = 0x00000004u,
+    .collision_threshold = 0.4f,
+};
+
 static inline YrEntity create_entity_4_pos(Vector2 pos, void *data, YrEntityInitFunc init, YrEntityUpdateFunc update, YrEntityCleanupFunc cleanup) {
-    YrEntity e = (YrEntity){
-        .pos = pos,
-        .texture_id = tx_wal_023,
-        .vscale = 0.0f,
-        .hscale = 0.0f,
-        .vmove = 0.0f,
-        .disabled = false,
-        .kind = 0,
-        .entity_data = data,
-        .collision_mask = 0x00000004u,
-        .collision_threshold = 0.4f,
-        .init = init,
-        .update = update,
-        .cleanup = cleanup,
-    };
+    YrEntity e = entity_4_template;
+    e.pos = pos;
+    e.entity_data = data;
+    e.init = init;
+    e.update = update;
+    e.cleanup = cleanup;
     return e;
 }
 
 static inline YrEntity create_entity_4(void *data, YrEntityInitFunc init, YrEntityUpdateFunc update, YrEntityCleanupFunc cleanup) {
-    return create_entity_4_pos((Vector2){17.621407f, 72.393517f}, data, init, update, cleanup);
+    return create_entity_4_pos(entity_4_template.pos, data, init, update, cleanup);
 }
 
+static const YrEntity entity_5_template = {
+    .pos = {18.551016f, 72.451935f},
+    .texture_id = tx_wal_023,
+    .vscale = 0.0f,
+    .hscale = 0.0f,
+    .vmove = 0.0f,
+    .disabled = false,
+    .kind = 0,
+    .collision_mask = 0x00000004u,
+    .collision_threshold = 0.4f,
+};
+
 static inline YrEntity create_entity_5_pos(Vector2 pos, void *data, YrEntityInitFunc init, YrEntityUpdateFunc update, YrEntityCleanupFunc cleanup) {
-    YrEntity e = (YrEntity){
-        .pos = pos,
-        .texture_id = tx_wal_023,
-        .vscale = 0.0f,
-        .hscale = 0.0f,
-        .vmove = 0.0f,
-        .disabled = false,
-        .kind = 0,
-        .entity_data = data,
-        .collision_mask = 0x00000004u,
-        .collision_threshold = 0.4f,
-        .init = init,
-        .update = update,
-        .cleanup = cleanup,
-    };
+    YrEntity e = entity_5_template;
+    e.pos = pos;
+    e.entity_data = data;
+    e.init = init;
+    e.update = update;
+    e.cleanup = cleanup;
     return e;
 }
 
 static inline YrEntity create_entity_5(void *data, YrEntityInitFunc init, YrEntityUpdateFunc update, YrEntityCleanupFunc cleanup) {
-    return create_entity_5_pos((Vector2){18.551016f, 72.451935f}, data, init, update, cleanup);
+    return create_entity_5_pos(entity_5_template.pos, data, init, update, cleanup);
 }
 
+static const YrEntity entity_6_template = {
+    .pos = {18.426859f, 71.641319f},
+    .texture_id = tx_wal_023,
+    .vscale = 0.0f,
+    .hscale = 0.0f,
+    .vmove = 0.0f,
+    .disabled = false,
+    .kind = 0,
+    .collision_mask = 0x00000004u,
+    .collision_threshold = 0.4f,
+};
+
 static inline YrEntity create_entity_6_pos(Vector2 pos, void *data, YrEntityInitFunc init, YrEntityUpdateFunc update, YrEntityCleanupFunc cleanup) {
-    YrEntity e = (YrEntity){
-        .pos = pos,
-        .texture_id = tx_wal_023,
-        .vscale = 0.0f,
-        .hscale = 0.0f,
-        .vmove = 0.0f,
-        .disabled = false,
-        .kind = 0,
-        .entity_data = data,
-        .collision_mask = 0x00000004u,
-        .collision_threshold = 0.4f,
-        .init = init,
-        .update = update,
-        .cleanup = cleanup,
-    };
+    YrEntity e = entity_6_template;
+    e.pos = pos;
+    e.entity_data = data;
+    e.init = init;
+    e.update = update;
+    e.cleanup = cleanup;
     return e;
 }
 
 static inline YrEntity create_entity_6(void *data, YrEntityInitFunc init, YrEntityUpdateFunc update, YrEntityCleanupFunc cleanup) {
-    return create_entity_6_pos((Vector2){18.426859f, 71.641319f}, data, init, update, cleanup);
+    return create_entity_6_pos(entity_6_template.pos, data, init, update, cleanup);
 }
 
+static const YrEntity entity_7_template = {
+    .pos = {18.016254f, 73.355583f},
+    .texture_id = tx_wal_023,
+    .vscale = 0.0f,
+    .hscale = 0.0f,
+    .vmove = 0.0f,
+    .disabled = false,
+    .kind = 0,
+    .collision_mask = 0x00000004u,
+    .collision_threshold = 0.4f,
+};
+
 static inline YrEntity create_entity_7_pos(Vector2 pos, void *data, YrEntityInitFunc init, YrEntityUpdateFunc update, YrEntityCleanupFunc cleanup) {
-    YrEntity e = (YrEntity){
-        .pos = pos,
-        .texture_id = tx_wal_023,
-        .vscale = 0.0f,
-        .hscale = 0.0f,
-        .vmove = 0.0f,
-        .disabled = false,
-        .kind = 0,
-        .entity_data = data,
-        .collision_mask = 0x00000004u,
-        .collision_threshold = 0.4f,
-        .init = init,
-        .update = update,
-        .cleanup = cleanup,
-    };
+    YrEntity e = entity_7_template;
+    e.pos = pos;
+    e.entity_data = data;
+    e.init = init;
+    e.update = update;
+    e.cleanup = cleanup;
     return e;
 }
 
 static inline YrEntity create_entity_7(void *data, YrEntityInitFunc init, YrEntityUpdateFunc update, YrEntityCleanupFunc cleanup) {
-    return create_entity_7_pos((Vector2){18.016254f, 73.355583f}, data, init, update, cleanup);
+    return create_entity_7_pos(entity_7_template.pos, data, init, update, cleanup);
 }
 
+static const YrEntity *const level_exported_entities[] = {
+    &entity_1_template,
+    &entity_2_template,
+    &entity_3_template,
+    &entity_4_template,
+    &entity_5_template,
+    &entity_6_template,
+    &entity_7_template,
+};
+
+static const YrAnimation *const level_exported_animations[] = {
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+};
+
 static inline void level_append_exported_entities(YrContext *ctx) {
-    yr_create_entity(ctx, create_entity_1(NULL, NULL, NULL, NULL));
-    yr_create_entity(ctx, create_entity_2(NULL, NULL, NULL, NULL));
-    yr_create_entity(ctx, create_entity_3(NULL, NULL, NULL, NULL));
-    yr_create_entity(ctx, create_entity_4(NULL, NULL, NULL, NULL));
-    yr_create_entity(ctx, create_entity_5(NULL, NULL, NULL, NULL));
-    yr_create_entity(ctx, create_entity_6(NULL, NULL, NULL, NULL));
-    yr_create_entity(ctx, create_entity_7(NULL, NULL, NULL, NULL));
+    for (size_t i = 0; i < sizeof(level_exported_entities) / sizeof(level_exported_entities[0]); i++) {
+        YrEntity e = *level_exported_entities[i];
+        if (level_exported_animations[i]) yr_start_loop_animation(&e.animation, *level_exported_animations[i]);
+        yr_create_entity(ctx, e);
+    }
 }
 
 static const YrWall level_map[YR_MAP_ROWS * YR_MAP_COLS] = {

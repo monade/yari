@@ -28,7 +28,7 @@ static const uint8_t yr_bayer4x4[4][4] = {
 };
 
 static inline int yr_mono_dither_lit(uint8_t luma, int x, int y) {
-    return luma > yr_bayer4x4[y & 3][x & 3] * 17;
+    return luma > yr_bayer4x4[y & 3][x & 3] * 16 + 8;
 }
 
 #if defined(YR_RGB565) // 16-bit color in 5-6-5 format

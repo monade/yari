@@ -96,29 +96,63 @@
 #endif
 #endif
 
-// Panel color depth. 1 = monochrome (dithered, packed per the controller's
-// native GDDRAM layout), 8 = grayscale (YR_L8, direct passthrough), 16 =
-// RGB565 (the fast, zero-copy path), anything else is treated as N
-// bytes/pixel and filled by expanding RGB565 per channel. YR_MONOCROME and
-// YR_L8 mirror the project-wide pixel-format switches of the same name (see
-// colors.h): YR_MONOCROME always wants the dithered 1bpp wire path (even
-// without a monochrome controller selected above), while YR_L8 alone means
-// an actual grayscale panel.
+// The engine renders at YR_LCD_W x YR_LCD_H and the panel shows it LCD_SCALE
+// times larger in each direction (pixel replication while converting), so a
+// big panel needs a framebuffer of only its render size.
+#ifndef LCD_SCALE
+#define LCD_SCALE 1
+#endif
+#define LCD_PANEL_W (YR_LCD_W * LCD_SCALE)
+#define LCD_PANEL_H (YR_LCD_H * LCD_SCALE)
+
+// Panel color depth on the wire: 1 = monochrome (Bayer-dithered, packed per
+// the controller's native GDDRAM layout), 16 = RGB565, 18 = RGB666 (3 bytes
+// per pixel). The engine's pixel format (RGB565 or L8, see colors.h) is
+// converted to it once per frame in lcd_present(). RGB565 on a 16bpp panel
+// at LCD_SCALE 1 is the zero-copy path: the framebuffer is blitted as is.
+// YR_MONOCROME selects the 1bpp wire path even without a monochrome
+// controller selected above.
 #ifndef LCD_BITS_PER_PIXEL
 #if defined(LCD_CONTROLLER_SSD1306) || defined(YR_MONOCROME)
 #define LCD_BITS_PER_PIXEL 1
-#elif defined(YR_L8)
-#define LCD_BITS_PER_PIXEL 8
 #else
 #define LCD_BITS_PER_PIXEL 16
 #endif
 #endif
+#if LCD_BITS_PER_PIXEL != 1 && LCD_BITS_PER_PIXEL != 16 && LCD_BITS_PER_PIXEL != 18
+#error "LCD_BITS_PER_PIXEL must be 1, 16 or 18"
+#endif
+
+#if defined(YR_RGB565) && LCD_BITS_PER_PIXEL == 16 && LCD_SCALE == 1
+#define LCD_ZERO_COPY
+#endif
 
 #define LCD_BYTES_PER_PIXEL ((LCD_BITS_PER_PIXEL + 7) / 8)
-#if LCD_BITS_PER_PIXEL == 1
-#define LCD_WIRE_BUFFER_SIZE ((YR_LCD_W * YR_LCD_H + 7) / 8)
+
+// 16/18bpp conversion goes out in bands of LCD_BAND_ROWS panel rows (a
+// multiple of LCD_SCALE) through two small buffers, so the wire buffers stay a
+// few KB whatever the panel size.
+#ifndef LCD_BAND_ROWS
+#define LCD_BAND_ROWS (16 / LCD_SCALE * LCD_SCALE)
+#endif
+#if LCD_BAND_ROWS < LCD_SCALE || LCD_BAND_ROWS % LCD_SCALE != 0
+#error "LCD_BAND_ROWS must be a positive multiple of LCD_SCALE"
+#endif
+// Rounded up to 4 bytes so both buffers stay word-aligned for the SPI DMA.
+#define LCD_BAND_BYTES ((LCD_PANEL_W * LCD_BAND_ROWS * LCD_BYTES_PER_PIXEL + 3) & ~3)
+
+// LCD_TRANSFERS is the number of draw_bitmap calls (and so of
+// on_color_trans_done callbacks) per frame; LCD_WIRE_BUFFER_SIZE is the
+// largest one.
+#if defined(LCD_ZERO_COPY)
+#define LCD_TRANSFERS 1
+#define LCD_WIRE_BUFFER_SIZE (LCD_PANEL_W * LCD_PANEL_H * LCD_BYTES_PER_PIXEL)
+#elif LCD_BITS_PER_PIXEL == 1
+#define LCD_TRANSFERS 1
+#define LCD_WIRE_BUFFER_SIZE (((LCD_PANEL_H + 7) / 8) * LCD_PANEL_W)
 #else
-#define LCD_WIRE_BUFFER_SIZE (YR_LCD_W * YR_LCD_H * LCD_BYTES_PER_PIXEL)
+#define LCD_TRANSFERS ((LCD_PANEL_H + LCD_BAND_ROWS - 1) / LCD_BAND_ROWS)
+#define LCD_WIRE_BUFFER_SIZE LCD_BAND_BYTES
 #endif
 
 #define SCREEN_PIXEL_COUNT (YR_LCD_W * YR_LCD_H)
@@ -129,28 +163,53 @@ static float cached_frame_time = 0.0f;
 static int target_fps = 30;
 static int64_t target_frame_time_us = 1000000 / 30;
 
-// Canonical RGB565 framebuffer the engine draws into. Its byte order matches
-// the wire format only in the 16bpp fast path (see lcd_color()); every other
-// panel format is produced from this buffer once per frame in
-// lcd_prepare_frame().
+// Framebuffer the engine draws into: one uint16_t slot per pixel, holding an
+// RGB565 or L8 value (see colors.h). Its byte order matches the wire format
+// only in the zero-copy path (see lcd_color()); every other panel format is
+// produced from this buffer once per frame in lcd_present().
 static uint16_t framebuffer0[SCREEN_PIXEL_COUNT];
 
 static uint16_t *fb_back = framebuffer0;
 
-// In the 16bpp fast path the framebuffer stores panel-order (byte-swapped)
+// Engine pixel to 8-bit channels. px_luma uses the Rec. 601 weights of
+// YR_COLOR in the L8 format.
+#ifdef YR_RGB565
+static inline uint8_t px_r(uint16_t c) { uint8_t v = c >> 11; return (v << 3) | (v >> 2); }
+static inline uint8_t px_g(uint16_t c) { uint8_t v = (c >> 5) & 0x3F; return (v << 2) | (v >> 4); }
+static inline uint8_t px_b(uint16_t c) { uint8_t v = c & 0x1F; return (v << 3) | (v >> 2); }
+static inline uint8_t px_luma(uint16_t c) { return (77 * px_r(c) + 150 * px_g(c) + 29 * px_b(c)) >> 8; }
+#else // YR_L8
+static inline uint8_t px_r(uint16_t c) { return (uint8_t)c; }
+static inline uint8_t px_g(uint16_t c) { return (uint8_t)c; }
+static inline uint8_t px_b(uint16_t c) { return (uint8_t)c; }
+static inline uint8_t px_luma(uint16_t c) { return (uint8_t)c; }
+#endif
+
+// Engine pixel as an RGB565 word (L8 becomes gray).
+#ifdef YR_RGB565
+static inline uint16_t px_rgb565(uint16_t c) { return c; }
+#else
+static inline uint16_t px_rgb565(uint16_t c) { return ((c >> 3) << 11) | ((c >> 2) << 5) | (c >> 3); }
+#endif
+
+// RGB565 word in the panel's byte order.
+static inline uint16_t lcd_swap16(uint16_t c) {
+#ifdef ESP32_DISPLAY_LITTLE_ENDIAN
+    return c;
+#else
+    return (uint16_t)((c << 8) | (c >> 8));
+#endif
+}
+
+// In the zero-copy path the framebuffer stores panel-order (byte-swapped)
 // RGB565 pixels so a frame can be blitted verbatim with no per-frame
 // conversion pass; other panel formats are converted once per frame instead
-// (see lcd_prepare_frame()), so storage here just stays canonical RGB565.
+// (see lcd_present()), so storage there is the engine pixel as is.
 static inline uint16_t lcd_color(yr_pixel_t color) {
-    uint16_t c = (uint16_t)color;
-#if LCD_BITS_PER_PIXEL == 16
-    #ifdef ESP32_DISPLAY_LITTLE_ENDIAN
-    return c;
-    #else
-    return (uint16_t)((c << 8) | (c >> 8));
-    #endif
+#ifdef LCD_ZERO_COPY
+    return lcd_swap16((uint16_t)color);
 #else
-    return c;
+    return (uint16_t)color;
 #endif
 }
 
@@ -179,9 +238,9 @@ static esp_lcd_panel_io_handle_t lcd_io;
 static esp_lcd_panel_handle_t lcd_panel;
 static SemaphoreHandle_t lcd_trans_done_sem;
 
-// Runs in the SPI driver's ISR context once the frame's color data has been
-// fully clocked out, so yr_render_screen() can block until the framebuffer is
-// safe to overwrite again.
+// Runs in the SPI driver's ISR context each time a draw_bitmap's color data has
+// been fully clocked out, so yr_render_screen() can block until the whole frame
+// has been sent.
 static bool YR_PERF_ATTR lcd_on_color_trans_done(esp_lcd_panel_io_handle_t io, esp_lcd_panel_io_event_data_t *edata, void *user_ctx) {
     (void)io;
     (void)edata;
@@ -205,7 +264,7 @@ static void lcd_init(void) {
     };
     ESP_ERROR_CHECK(spi_bus_initialize(LCD_SPI_HOST, &bus, SPI_DMA_CH_AUTO));
 
-    lcd_trans_done_sem = xSemaphoreCreateBinary();
+    lcd_trans_done_sem = xSemaphoreCreateCounting(LCD_TRANSFERS, 0);
 
     esp_lcd_panel_io_spi_config_t io_config = {
         .cs_gpio_num = PIN_CS,
@@ -221,7 +280,7 @@ static void lcd_init(void) {
     ESP_ERROR_CHECK(esp_lcd_new_panel_io_spi(LCD_SPI_HOST, &io_config, &lcd_io));
 
 #if defined(LCD_CONTROLLER_SSD1306)
-    esp_lcd_panel_ssd1306_config_t ssd1306_config = { .height = YR_LCD_H };
+    esp_lcd_panel_ssd1306_config_t ssd1306_config = { .height = LCD_PANEL_H };
 #endif
     esp_lcd_panel_dev_config_t panel_config = {
         .reset_gpio_num = PIN_RST,
@@ -264,72 +323,83 @@ static void lcd_init(void) {
 #endif
 }
 
-#if LCD_BITS_PER_PIXEL == 16
+#ifdef LCD_ZERO_COPY
 // Fast path: the framebuffer already stores panel-ready RGB565 words (see
 // lcd_color()), so a frame is just blitted verbatim with no conversion pass.
-static inline const void *lcd_prepare_frame(void) {
-    return fb_back;
+static void lcd_present(void) {
+    ESP_ERROR_CHECK(esp_lcd_panel_draw_bitmap(lcd_panel, 0, 0, LCD_PANEL_W, LCD_PANEL_H, fb_back));
 }
 #elif LCD_BITS_PER_PIXEL == 1
 static uint8_t lcd_wire_buffer[LCD_WIRE_BUFFER_SIZE];
 
-#define LCD_LUMA_MAX ((31 * 8) + (63 * 4) + (31 * 2))
-// Cheap RGB565 luminance approximation (weights are just the per-channel bit
-// ranges, not a proper colorimetric formula), rescaled to 0..255 and handed
-// to the shared Bayer-dithered threshold (see colors.h) so the panel gets
-// the same ordered dithering as the YR_MONOCROME desktop simulation.
-static inline bool lcd_pixel_is_lit(uint16_t c, int x, int y) {
-    int luma = ((c >> 11) & 0x1F) * 8 + ((c >> 5) & 0x3F) * 4 + (c & 0x1F) * 2;
-    return yr_mono_dither_lit((uint8_t)(luma * 255 / LCD_LUMA_MAX), x, y);
-}
-
-// Packs the canonical RGB565 framebuffer into the SSD1306/SH110x-style
-// page-major 1bpp GDDRAM layout: each byte holds 8 vertically-stacked
-// pixels (LSB = topmost row of its page), laid out page-by-page.
-static const void *lcd_prepare_frame(void) {
+// Packs the framebuffer into the SSD1306/SH110x-style page-major 1bpp GDDRAM
+// layout: each byte holds 8 vertically-stacked pixels (LSB = topmost row of
+// its page), laid out page-by-page. Pixels go through the shared Bayer
+// dither (see colors.h), the same one the YR_MONOCROME desktop simulation uses.
+static void lcd_present(void) {
     memset(lcd_wire_buffer, 0, sizeof(lcd_wire_buffer));
-    for (int y = 0; y < YR_LCD_H; y++) {
-        uint8_t *page = lcd_wire_buffer + (y / 8) * YR_LCD_W;
+    for (int y = 0; y < LCD_PANEL_H; y++) {
+        uint8_t *page = lcd_wire_buffer + (y / 8) * LCD_PANEL_W;
         uint8_t bit = (uint8_t)(1 << (y % 8));
-        const uint16_t *src = fb_back + y * YR_LCD_W;
-        for (int x = 0; x < YR_LCD_W; x++) {
-            if (lcd_pixel_is_lit(src[x], x, y)) page[x] |= bit;
+        const uint16_t *src = fb_back + (y / LCD_SCALE) * YR_LCD_W;
+        for (int x = 0; x < LCD_PANEL_W; x++) {
+            if (yr_mono_dither_lit(px_luma(src[x / LCD_SCALE]), x, y)) page[x] |= bit;
         }
     }
-    return lcd_wire_buffer;
-}
-#elif LCD_BITS_PER_PIXEL == 8
-static uint8_t lcd_wire_buffer[LCD_WIRE_BUFFER_SIZE];
-
-// YR_L8 stores a plain 0..255 luma value per pixel widened into the
-// framebuffer's uint16_t slots (see lcd_color()), so this is a straight
-// byte copy - no RGB565 bit extraction needed, unlike the other panel
-// formats below.
-static const void *lcd_prepare_frame(void) {
-    uint8_t *dst = lcd_wire_buffer;
-    const uint16_t *src = fb_back;
-    for (int i = 0; i < SCREEN_PIXEL_COUNT; i++, src++) *dst++ = (uint8_t)*src;
-    return lcd_wire_buffer;
+    ESP_ERROR_CHECK(esp_lcd_panel_draw_bitmap(lcd_panel, 0, 0, LCD_PANEL_W, LCD_PANEL_H, lcd_wire_buffer));
 }
 #else
-static uint8_t lcd_wire_buffer[LCD_WIRE_BUFFER_SIZE];
+static uint8_t lcd_band_buffer[2][LCD_BAND_BYTES] __attribute__((aligned(4)));
 
-// Expands the canonical RGB565 framebuffer to LCD_BYTES_PER_PIXEL bytes per
-// pixel (e.g. RGB888 for 24bpp panels), replicating each channel's high bits
-// into the low bits so gradients stay smooth. Any bytes beyond the 3rd
-// (e.g. alpha on a 32bpp panel) are padded opaque.
-static const void *lcd_prepare_frame(void) {
-    uint8_t *dst = lcd_wire_buffer;
-    const uint16_t *src = fb_back;
-    for (int i = 0; i < SCREEN_PIXEL_COUNT; i++, src++) {
-        uint16_t c = *src;
-        uint8_t r5 = (c >> 11) & 0x1F, g6 = (c >> 5) & 0x3F, b5 = c & 0x1F;
-        *dst++ = (uint8_t)((r5 << 3) | (r5 >> 2));
-        *dst++ = (uint8_t)((g6 << 2) | (g6 >> 4));
-        *dst++ = (uint8_t)((b5 << 3) | (b5 >> 2));
-        for (int pad = 3; pad < LCD_BYTES_PER_PIXEL; pad++) *dst++ = 0xFF;
+// Appends the wire bytes of one engine pixel: RGB565 in panel byte order for
+// 16bpp, RGB666 for 18bpp (3 bytes, each channel in the 6 high bits of its
+// byte, expanded with the high bits replicated into the low ones so white
+// stays full scale).
+static inline uint8_t *lcd_emit(uint8_t *dst, uint16_t c) {
+#if LCD_BITS_PER_PIXEL == 18
+    *dst++ = px_r(c);
+    *dst++ = px_g(c);
+    *dst++ = px_b(c);
+#else
+    uint16_t word = lcd_swap16(px_rgb565(c));
+    memcpy(dst, &word, sizeof(word));
+    dst += sizeof(word);
+#endif
+    return dst;
+}
+
+// Converts panel rows [y, y + rows) into buf. Each framebuffer row is
+// converted once, with every pixel emitted LCD_SCALE times, then copied for
+// the other LCD_SCALE - 1 panel rows it covers.
+static void lcd_fill_band(uint8_t *buf, int y, int rows) {
+    const size_t row_bytes = LCD_PANEL_W * LCD_BYTES_PER_PIXEL;
+    for (int r = 0; r < rows; r += LCD_SCALE) {
+        const uint16_t *src = fb_back + ((y + r) / LCD_SCALE) * YR_LCD_W;
+        uint8_t *row = buf + r * row_bytes;
+        uint8_t *dst = row;
+        for (int x = 0; x < YR_LCD_W; x++) {
+            uint8_t *first = dst;
+            dst = lcd_emit(dst, src[x]);
+            for (int s = 1; s < LCD_SCALE; s++, dst += LCD_BYTES_PER_PIXEL) {
+                memcpy(dst, first, LCD_BYTES_PER_PIXEL);
+            }
+        }
+        for (int k = 1; k < LCD_SCALE; k++) memcpy(row + k * row_bytes, row, row_bytes);
     }
-    return lcd_wire_buffer;
+}
+
+// Converts and sends the frame band by band, alternating two buffers. Each
+// draw_bitmap first waits for the transfer still in flight (esp_lcd's SPI io
+// drains its queue before sending the window commands), so by the time band
+// b + 2 is converted into a buffer, band b has already left it, and the
+// conversion of one band overlaps the DMA of the previous one.
+static void lcd_present(void) {
+    for (int band = 0, y = 0; y < LCD_PANEL_H; band++, y += LCD_BAND_ROWS) {
+        int rows = LCD_PANEL_H - y < LCD_BAND_ROWS ? LCD_PANEL_H - y : LCD_BAND_ROWS;
+        uint8_t *buf = lcd_band_buffer[band & 1];
+        lcd_fill_band(buf, y, rows);
+        ESP_ERROR_CHECK(esp_lcd_panel_draw_bitmap(lcd_panel, 0, y, LCD_PANEL_W, y + rows, buf));
+    }
 }
 #endif
 
@@ -371,8 +441,9 @@ static void YR_PERF_ATTR yr_filter_rows(void *arg, int y_start, int y_end) {
     uint16_t *px = fb_back + y_start * YR_LCD_W;
     for (int y = y_start; y < y_end; y++) {
         for (int x = 0; x < YR_LCD_W; x++, px++) {
-            // The framebuffer holds panel-order (byte-swapped) pixels; the swap
-            // is its own inverse, so lcd_color converts in both directions.
+            // In the zero-copy path the framebuffer holds panel-order
+            // (byte-swapped) pixels; the swap is its own inverse, so lcd_color
+            // converts in both directions.
             yr_pixel_t color = (yr_pixel_t)lcd_color(*px);
             ctx->apply(x, y, &color, ctx->user_data);
             *px = lcd_color(color);
@@ -424,10 +495,12 @@ void yr_begin_drawing() {
 }
 
 void yr_render_screen() {
-    ESP_ERROR_CHECK(esp_lcd_panel_draw_bitmap(lcd_panel, 0, 0, YR_LCD_W, YR_LCD_H, lcd_prepare_frame()));
-    // Single framebuffer: block until the DMA transfer is done so the next
-    // frame's drawing doesn't race the SPI read of this one.
-    xSemaphoreTake(lcd_trans_done_sem, portMAX_DELAY);
+    lcd_present();
+    // Block until every transfer of the frame is done, so the next frame's
+    // drawing and conversion don't race the SPI read of this one.
+    for (int i = 0; i < LCD_TRANSFERS; i++) {
+        xSemaphoreTake(lcd_trans_done_sem, portMAX_DELAY);
+    }
 }
 
 void yr_end_drawing() {

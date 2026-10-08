@@ -4308,6 +4308,55 @@ static void derive_level_gen_path(const char *output_path, char *out, size_t out
     snprintf(out + dir_len, out_size - dir_len, "%s", LEVEL_GEN_FILE_NAME);
 }
 
+/* Finds the entity's animation and returns the uppercase symbol its <NAME>_ANIM constant is built from. */
+static bool entity_animation_symbol(const App *app, const PlacedEntity *entity, char *symbol, size_t symbol_size) {
+    if (entity->animation[0] == '\0') return false;
+    for (size_t ai = 0; ai < app->animations.length; ai++) {
+        if (strcmp(app->animations.data[ai].name, entity->animation) != 0) continue;
+        size_t c = 0;
+        for (; entity->animation[c] && c < symbol_size - 1; c++) symbol[c] = (char)toupper((unsigned char)entity->animation[c]);
+        symbol[c] = '\0';
+        return true;
+    }
+    return false;
+}
+
+/* Emits the constant part of an entity (everything but its data pointer and the callbacks left to the caller)
+   as a static const YrEntity, which lives in flash. */
+static void append_entity_template(String *out, const App *app, const PlacedEntity *entity, const char *template_name) {
+    const char *texture_symbol = "NULL_ASSET";
+    if (entity->asset_index >= 0 && entity->asset_index < (int)app->assets.length) {
+        texture_symbol = app->assets.data[entity->asset_index].texture_symbol;
+    }
+
+    str_appendf(out, "static const YrEntity %s = {\n", template_name);
+    str_append(out, "    .pos = {");
+    append_float_literal(out, entity->pos.x);
+    str_append(out, ", ");
+    append_float_literal(out, entity->pos.y);
+    str_append(out, "},\n");
+    str_appendf(out, "    .texture_id = %s,\n", texture_symbol);
+    str_append(out, "    .vscale = ");
+    append_float_literal(out, entity->vscale);
+    str_append(out, ",\n");
+    str_append(out, "    .hscale = ");
+    append_float_literal(out, entity->hscale);
+    str_append(out, ",\n");
+    str_append(out, "    .vmove = ");
+    append_float_literal(out, entity->vmove);
+    str_append(out, ",\n");
+    str_appendf(out, "    .disabled = %s,\n", entity->disabled ? "true" : "false");
+    str_appendf(out, "    .kind = %d,\n", entity->kind);
+    str_appendf(out, "    .collision_mask = 0x%08Xu,\n", entity->collision_mask);
+    str_append(out, "    .collision_threshold = ");
+    append_float_literal(out, entity->collision_threshold);
+    str_append(out, ",\n");
+    if (entity->init_fn[0] != '\0') str_appendf(out, "    .init = %s,\n", entity->init_fn);
+    if (entity->update_fn[0] != '\0') str_appendf(out, "    .update = %s,\n", entity->update_fn);
+    if (entity->cleanup_fn[0] != '\0') str_appendf(out, "    .cleanup = %s,\n", entity->cleanup_fn);
+    str_append(out, "};\n\n");
+}
+
 static bool write_level_header(App *app) {
     char level_lower[80] = {0};
     char level_upper[80] = {0};
@@ -4464,56 +4513,29 @@ static bool write_level_header(App *app) {
 
     for (size_t i = 0; i < app->entities.length; i++) {
         PlacedEntity *entity = &app->entities.data[i];
-        const char *texture_symbol = "NULL_ASSET";
-        if (entity->asset_index >= 0 && entity->asset_index < (int)app->assets.length) {
-            texture_symbol = app->assets.data[entity->asset_index].texture_symbol;
-        }
 
         bool has_init = entity->init_fn[0] != '\0';
         bool has_update = entity->update_fn[0] != '\0';
         bool has_cleanup = entity->cleanup_fn[0] != '\0';
 
-        bool has_animation = false;
         char anim_symbol[ANIM_NAME_SIZE] = {0};
-        if (entity->animation[0] != '\0') {
-            for (size_t ai = 0; ai < app->animations.length; ai++) {
-                if (strcmp(app->animations.data[ai].name, entity->animation) != 0) continue;
-                has_animation = true;
-                for (size_t c = 0; entity->animation[c] && c < ANIM_NAME_SIZE - 1; c++) {
-                    anim_symbol[c] = (char)toupper((unsigned char)entity->animation[c]);
-                }
-                break;
-            }
-        }
+        bool has_animation = entity_animation_symbol(app, entity, anim_symbol, sizeof(anim_symbol));
+
+        char template_name[ENTITY_NAME_SIZE + 96];
+        snprintf(template_name, sizeof(template_name), "%s%s_template", entity->name, fn_suffix);
+        append_entity_template(&out, app, entity, template_name);
 
         str_appendf(&out, "static inline YrEntity create_%s%s_pos(Vector2 pos, void *data", entity->name, fn_suffix);
         if (!has_init) str_append(&out, ", YrEntityInitFunc init");
         if (!has_update) str_append(&out, ", YrEntityUpdateFunc update");
         if (!has_cleanup) str_append(&out, ", YrEntityCleanupFunc cleanup");
         str_append(&out, ") {\n");
-        str_append(&out, "    YrEntity e = (YrEntity){\n");
-        str_append(&out, "        .pos = pos,\n");
-        str_appendf(&out, "        .texture_id = %s,\n", texture_symbol);
-        str_append(&out, "        .vscale = ");
-        append_float_literal(&out, entity->vscale);
-        str_append(&out, ",\n");
-        str_append(&out, "        .hscale = ");
-        append_float_literal(&out, entity->hscale);
-        str_append(&out, ",\n");
-        str_append(&out, "        .vmove = ");
-        append_float_literal(&out, entity->vmove);
-        str_append(&out, ",\n");
-        str_appendf(&out, "        .disabled = %s,\n", entity->disabled ? "true" : "false");
-        str_appendf(&out, "        .kind = %d,\n", entity->kind);
-        str_appendf(&out, "        .entity_data = data,\n");
-        str_appendf(&out, "        .collision_mask = 0x%08Xu,\n", entity->collision_mask);
-        str_append(&out, "        .collision_threshold = ");
-        append_float_literal(&out, entity->collision_threshold);
-        str_append(&out, ",\n");
-        str_appendf(&out, "        .init = %s,\n", has_init ? entity->init_fn : "init");
-        str_appendf(&out, "        .update = %s,\n", has_update ? entity->update_fn : "update");
-        str_appendf(&out, "        .cleanup = %s,\n", has_cleanup ? entity->cleanup_fn : "cleanup");
-        str_append(&out, "    };\n");
+        str_appendf(&out, "    YrEntity e = %s;\n", template_name);
+        str_append(&out, "    e.pos = pos;\n");
+        str_append(&out, "    e.entity_data = data;\n");
+        if (!has_init) str_append(&out, "    e.init = init;\n");
+        if (!has_update) str_append(&out, "    e.update = update;\n");
+        if (!has_cleanup) str_append(&out, "    e.cleanup = cleanup;\n");
         if (has_animation) str_appendf(&out, "    yr_start_loop_animation(&e.animation, %s_ANIM);\n", anim_symbol);
         str_append(&out, "    return e;\n");
         str_append(&out, "}\n\n");
@@ -4523,11 +4545,7 @@ static bool write_level_header(App *app) {
         if (!has_update) str_append(&out, ", YrEntityUpdateFunc update");
         if (!has_cleanup) str_append(&out, ", YrEntityCleanupFunc cleanup");
         str_append(&out, ") {\n");
-        str_appendf(&out, "    return create_%s%s_pos((Vector2){", entity->name, fn_suffix);
-        append_float_literal(&out, entity->pos.x);
-        str_append(&out, ", ");
-        append_float_literal(&out, entity->pos.y);
-        str_append(&out, "}, data");
+        str_appendf(&out, "    return create_%s%s_pos(%s.pos, data", entity->name, fn_suffix, template_name);
         if (!has_init) str_append(&out, ", init");
         if (!has_update) str_append(&out, ", update");
         if (!has_cleanup) str_append(&out, ", cleanup");
@@ -4535,18 +4553,43 @@ static bool write_level_header(App *app) {
         str_append(&out, "}\n\n");
     }
 
-    str_appendf(&out, "static inline void %s(YrContext *ctx) {\n", append_entities_fn);
+    size_t exported_count = 0;
     for (size_t i = 0; i < app->entities.length; i++) {
-        PlacedEntity *entity = &app->entities.data[i];
-        if (!entity->exported) continue;
-        bool has_init = entity->init_fn[0] != '\0';
-        bool has_update = entity->update_fn[0] != '\0';
-        bool has_cleanup = entity->cleanup_fn[0] != '\0';
-        str_appendf(&out, "    yr_create_entity(ctx, create_%s%s(NULL", entity->name, fn_suffix);
-        if (!has_init) str_append(&out, ", NULL");
-        if (!has_update) str_append(&out, ", NULL");
-        if (!has_cleanup) str_append(&out, ", NULL");
-        str_append(&out, "));\n");
+        if (app->entities.data[i].exported) exported_count++;
+    }
+
+    /* Loading a level copies the exported templates one at a time into the context, so it needs a single
+       YrEntity on the stack however many entities the level has. */
+    char entities_var[96];
+    snprintf(entities_var, sizeof(entities_var), "level_exported_entities%s", fn_suffix);
+    char animations_var[96];
+    snprintf(animations_var, sizeof(animations_var), "level_exported_animations%s", fn_suffix);
+    if (exported_count > 0) {
+        str_appendf(&out, "static const YrEntity *const %s[] = {\n", entities_var);
+        for (size_t i = 0; i < app->entities.length; i++) {
+            PlacedEntity *entity = &app->entities.data[i];
+            if (entity->exported) str_appendf(&out, "    &%s%s_template,\n", entity->name, fn_suffix);
+        }
+        str_append(&out, "};\n\n");
+
+        str_appendf(&out, "static const YrAnimation *const %s[] = {\n", animations_var);
+        for (size_t i = 0; i < app->entities.length; i++) {
+            PlacedEntity *entity = &app->entities.data[i];
+            if (!entity->exported) continue;
+            char anim_symbol[ANIM_NAME_SIZE] = {0};
+            if (entity_animation_symbol(app, entity, anim_symbol, sizeof(anim_symbol))) str_appendf(&out, "    &%s_ANIM,\n", anim_symbol);
+            else str_append(&out, "    NULL,\n");
+        }
+        str_append(&out, "};\n\n");
+    }
+
+    str_appendf(&out, "static inline void %s(YrContext *ctx) {\n", append_entities_fn);
+    if (exported_count > 0) {
+        str_appendf(&out, "    for (size_t i = 0; i < sizeof(%s) / sizeof(%s[0]); i++) {\n", entities_var, entities_var);
+        str_appendf(&out, "        YrEntity e = *%s[i];\n", entities_var);
+        str_appendf(&out, "        if (%s[i]) yr_start_loop_animation(&e.animation, *%s[i]);\n", animations_var, animations_var);
+        str_append(&out, "        yr_create_entity(ctx, e);\n");
+        str_append(&out, "    }\n");
     }
     str_append(&out, "}\n\n");
 

@@ -262,7 +262,7 @@ Define `YR_L8` or `YR_MONOCROME` (which implies `YR_L8`) to use 8-bit grayscale 
 
 `YR_MONOCROME` simulates on desktop the dithered 1bpp path used by the ESP32 backend for monochrome panels (e.g. SSD1306). The engine runs normally in L8; only the final blit to the display thresholds each pixel to black/white using a Bayer 4×4 ordered dithering matrix (`yr_bayer4x4`, accessible as `yr_mono_dither_lit(luma, x, y)`).
 
-On ESP32 an `#elif` branch for `LCD_CONTROLLER_SSD1306` in `lcd_init()` selects the monochrome panel driver; the same Bayer dithering is applied in the blit path.
+On ESP32 an `#elif` branch for `LCD_CONTROLLER_SSD1306` in `lcd_init()` selects the monochrome panel driver; the same Bayer dithering is applied in the blit path. `YR_L8` on a color panel (e.g. ST7789) is expanded to gray RGB565 once per frame.
 
 Regardless of the mode, keep `apply` in integer math on ESP32: the Xtensa FPU
 is single-precision only, so `double` arithmetic (bare float literals like
@@ -554,7 +554,7 @@ void yr_init_game(Context *ctx) {
 }
 ```
 
-Entities marked as `exported` in the editor are appended in the game state entities.
+Entities marked as `exported` in the editor are appended in the game state entities. They are stored as constant data in flash and copied one at a time, so loading a level uses a fixed amount of stack however many entities it has.
 If you want to spawn entities at runtime you can remove the `exported` flag and call the factory functions directly, for example:
 
 ```c
@@ -643,9 +643,10 @@ file.
 Main configuration macros:
 
 ```c
-// Framebuffer / active area
+// Render size (the framebuffer) and the integer upscale to the panel
 #define YR_LCD_W 240
 #define YR_LCD_H 136
+#define LCD_SCALE 1    // the panel shows YR_LCD_W*LCD_SCALE x YR_LCD_H*LCD_SCALE
 #define LCD_X_OFF 40   // gap between GRAM origin and visible glass
 #define LCD_Y_OFF 53
 
@@ -672,11 +673,42 @@ Main configuration macros:
 #define LCD_BGR_ORDER false
 #define LCD_INVERT_COLOR true   // defaults to false for non-ST7789 controllers
 
-// Color depth: 1 = monochrome (packed per the controller's native GDDRAM
-// layout), 16 = RGB565 (fast path, zero-copy blit), anything else is
-// treated as N bytes/pixel and produced by expanding RGB565 per channel.
+// Color depth on the wire: 1 = monochrome (Bayer-dithered, packed per the
+// controller's native GDDRAM layout), 16 = RGB565, 18 = RGB666 (3 bytes per
+// pixel). RGB565 pixels on a 16bpp panel at LCD_SCALE 1 are blitted as is,
+// every other combination is converted once per frame.
 #define LCD_BITS_PER_PIXEL 16
+
+// Panel rows converted per band (16/18bpp conversion, a multiple of LCD_SCALE)
+#define LCD_BAND_ROWS 16
 ```
+
+#### Memory and bigger panels
+
+The framebuffer takes `YR_LCD_W * YR_LCD_H * 2` bytes. Conversions other than
+the zero-copy path go out in bands of `LCD_BAND_ROWS` panel rows through two
+small buffers, one converted while the other is on the wire, so the wire
+buffers do not grow with the panel height:
+
+| Config | Framebuffer | Wire buffers |
+|--------|-------------|--------------|
+| 240x136, RGB565, 16bpp (zero-copy) | 65 280 B | none |
+| 240x136, RGB565, 18bpp | 65 280 B | 2 x 11 520 B |
+| 240x136, `YR_L8`, 16bpp | 65 280 B | 2 x 7 680 B |
+| 320x240 panel rendered at 160x120, `LCD_SCALE 2`, 18bpp | 38 400 B | 2 x 15 360 B |
+
+For a panel larger than the framebuffer can afford, render at a fraction of its
+size and let the conversion replicate pixels, e.g. a 320x240 panel:
+
+```c
+#define YR_LCD_W 160
+#define YR_LCD_H 120
+#define LCD_SCALE 2
+```
+
+The raycaster also has `LCD_SCALE`² times fewer pixels to compute. A smaller
+`LCD_BAND_ROWS` shrinks the wire buffers further at the cost of one extra set
+of window commands per band.
 
 `esp_lcd` ships ST7789 and SSD1306 (monochrome) drivers with no extra
 dependencies; both are wired up above. To target another `esp_lcd`-compatible
@@ -735,7 +767,7 @@ float y = yr_joystick_get_axis(joystick_id, YR_Y_AXIS);
 ## Compatibility and Current Limits
 
 - The project is plain C.
-- The ESP32 renderer currently targets ST7789 SPI displays with an RGB565 framebuffer.
+- The ESP32 renderer currently targets SPI displays: ST7789 (16/18bpp) and SSD1306 (1bpp).
 - Desktop rendering can use raylib or SDL2; web rendering uses raylib.
 - Raycaster textures are expected to be `64x64`.
 - Map cells are `YrWall` structs (`kind`, `textured`, `texture_id`/`color`,
